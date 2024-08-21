@@ -6,6 +6,57 @@
 
 namespace dfpbrt{
 
+// Mathematical Constants
+constexpr Float ShadowEpsilon = 0.0001f;
+
+constexpr Float Pi = 3.14159265358979323846;
+constexpr Float InvPi = 0.31830988618379067154;
+constexpr Float Inv2Pi = 0.15915494309189533577;
+constexpr Float Inv4Pi = 0.07957747154594766788;
+constexpr Float PiOver2 = 1.57079632679489661923;
+constexpr Float PiOver4 = 0.78539816339744830961;
+constexpr Float Sqrt2 = 1.41421356237309504880;
+
+template <typename T>
+inline constexpr T Sqr(T v) {
+    return v * v;
+}
+
+template <typename T, typename U, typename V>
+inline constexpr T Clamp(T val, U low, V high) {
+    if (val < low)
+        return T(low);
+    else if (val > high)
+        return T(high);
+    else
+        return val;
+}
+
+inline Float SinXOverX(Float x) {
+    if (1 - x * x == 1)
+        return 1;
+    return std::sin(x) / x;
+}
+
+inline float SafeASin(float x) {
+    DCHECK(x >= -1.0001 && x <= 1.0001);
+    return std::asin(Clamp(x, -1, 1));
+}
+inline float SafeACos(float x) {
+    DCHECK(x >= -1.0001 && x <= 1.0001);
+    return std::acos(Clamp(x, -1, 1));
+}
+
+inline double SafeASin(double x) {
+    DCHECK(x >= -1.0001 && x <= 1.0001);
+    return std::asin(Clamp(x, -1, 1));
+}
+
+inline double SafeACos(double x) {
+    DCHECK(x >= -1.0001 && x <= 1.0001);
+    return std::acos(Clamp(x, -1, 1));
+}
+
 template <typename Ta, typename Tb, typename Tc, typename Td>
 inline auto DifferenceOfProducts(Ta a, Tb b, Tc c, Td d) {
     //calculate ab-cd with high precision

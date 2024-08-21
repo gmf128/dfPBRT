@@ -759,11 +759,11 @@ class Quaternion {
     Vector3f v;
     Float w = 1;
 
-
+};
     // Vector2 Inline Functions
 template <typename T>
 template <typename U>
-Vector2<T>::Vector2(Point2<U> p) : Tuple2<pbrt::Vector2, T>(T(p.x), T(p.y)) {}
+Vector2<T>::Vector2(Point2<U> p) : Tuple2<dfpbrt::Vector2, T>(T(p.x), T(p.y)) {}
 
 template <typename T>
 inline auto Dot(Vector2<T> v1, Vector2<T> v2) ->
@@ -810,7 +810,7 @@ inline auto DistanceSquared(Point2<T> p1, Point2<T> p2) ->
 // Vector3 Inline Functions
 template <typename T>
 template <typename U>
-Vector3<T>::Vector3(Point3<U> p) : Tuple3<pbrt::Vector3, T>(T(p.x), T(p.y), T(p.z)) {}
+Vector3<T>::Vector3(Point3<U> p) : Tuple3<dfpbrt::Vector3, T>(T(p.x), T(p.y), T(p.z)) {}
 
 template <typename T>
 inline Vector3<T> Cross(Vector3<T> v1, Normal3<T> v2) {
@@ -898,11 +898,11 @@ inline void CoordinateSystem(Vector3<T> v1, Vector3<T> *v2, Vector3<T> *v3) {
     Float b = v1.x * v1.y * a;
     *v2 = Vector3<T>(1 + sign * Sqr(v1.x) * a, sign * b, -sign * v1.x);
     *v3 = Vector3<T>(b, sign + Sqr(v1.y) * a, -v1.y);
-}
+};
 
 template <typename T>
-PBRT_CPU_GPU inline void CoordinateSystem(Normal3<T> v1, Vector3<T> *v2, Vector3<T> *v3) {
-    Float sign = pstd::copysign(Float(1), v1.z);
+inline void CoordinateSystem(Normal3<T> v1, Vector3<T> *v2, Vector3<T> *v3) {
+    Float sign = std::copysign(Float(1), v1.z);
     Float a = -1 / (sign + v1.z);
     Float b = v1.x * v1.y * a;
     *v2 = Vector3<T>(1 + sign * Sqr(v1.x) * a, sign * b, -sign * v1.x);
@@ -911,66 +911,66 @@ PBRT_CPU_GPU inline void CoordinateSystem(Normal3<T> v1, Vector3<T> *v2, Vector3
 
 template <typename T>
 template <typename U>
-Vector3<T>::Vector3(Normal3<U> n) : Tuple3<pbrt::Vector3, T>(T(n.x), T(n.y), T(n.z)) {}
+Vector3<T>::Vector3(Normal3<U> n) : Tuple3<dfpbrt::Vector3, T>(T(n.x), T(n.y), T(n.z)) {}
 
 // Point3 Inline Functions
 template <typename T>
-PBRT_CPU_GPU inline auto Distance(Point3<T> p1, Point3<T> p2) {
+inline auto Distance(Point3<T> p1, Point3<T> p2) {
     return Length(p1 - p2);
 }
 
 template <typename T>
-PBRT_CPU_GPU inline auto DistanceSquared(Point3<T> p1, Point3<T> p2) {
+inline auto DistanceSquared(Point3<T> p1, Point3<T> p2) {
     return LengthSquared(p1 - p2);
 }
 
 // Normal3 Inline Functions
 template <typename T>
-PBRT_CPU_GPU inline auto LengthSquared(Normal3<T> n) -> typename TupleLength<T>::type {
+inline auto LengthSquared(Normal3<T> n) -> typename TupleLength<T>::type {
     return Sqr(n.x) + Sqr(n.y) + Sqr(n.z);
 }
 
 template <typename T>
-PBRT_CPU_GPU inline auto Length(Normal3<T> n) -> typename TupleLength<T>::type {
+inline auto Length(Normal3<T> n) -> typename TupleLength<T>::type {
     using std::sqrt;
     return sqrt(LengthSquared(n));
 }
 
 template <typename T>
-PBRT_CPU_GPU inline auto Normalize(Normal3<T> n) {
+inline auto Normalize(Normal3<T> n) {
     return n / Length(n);
 }
 
 template <typename T>
-PBRT_CPU_GPU inline auto Dot(Normal3<T> n, Vector3<T> v) ->
+inline auto Dot(Normal3<T> n, Vector3<T> v) ->
     typename TupleLength<T>::type {
     DCHECK(!n.HasNaN() && !v.HasNaN());
     return FMA(n.x, v.x, SumOfProducts(n.y, v.y, n.z, v.z));
 }
 
 template <typename T>
-PBRT_CPU_GPU inline auto Dot(Vector3<T> v, Normal3<T> n) ->
+inline auto Dot(Vector3<T> v, Normal3<T> n) ->
     typename TupleLength<T>::type {
     DCHECK(!v.HasNaN() && !n.HasNaN());
     return FMA(n.x, v.x, SumOfProducts(n.y, v.y, n.z, v.z));
 }
 
 template <typename T>
-PBRT_CPU_GPU inline auto Dot(Normal3<T> n1, Normal3<T> n2) ->
+inline auto Dot(Normal3<T> n1, Normal3<T> n2) ->
     typename TupleLength<T>::type {
     DCHECK(!n1.HasNaN() && !n2.HasNaN());
     return FMA(n1.x, n2.x, SumOfProducts(n1.y, n2.y, n1.z, n2.z));
 }
 
 template <typename T>
-PBRT_CPU_GPU inline auto AbsDot(Normal3<T> n, Vector3<T> v) ->
+inline auto AbsDot(Normal3<T> n, Vector3<T> v) ->
     typename TupleLength<T>::type {
     DCHECK(!n.HasNaN() && !v.HasNaN());
     return std::abs(Dot(n, v));
 }
 
 template <typename T>
-PBRT_CPU_GPU inline auto AbsDot(Vector3<T> v, Normal3<T> n) ->
+inline auto AbsDot(Vector3<T> v, Normal3<T> n) ->
     typename TupleLength<T>::type {
     using std::abs;
     DCHECK(!v.HasNaN() && !n.HasNaN());
@@ -978,7 +978,7 @@ PBRT_CPU_GPU inline auto AbsDot(Vector3<T> v, Normal3<T> n) ->
 }
 
 template <typename T>
-PBRT_CPU_GPU inline auto AbsDot(Normal3<T> n1, Normal3<T> n2) ->
+inline auto AbsDot(Normal3<T> n1, Normal3<T> n2) ->
     typename TupleLength<T>::type {
     using std::abs;
     DCHECK(!n1.HasNaN() && !n2.HasNaN());
@@ -986,44 +986,44 @@ PBRT_CPU_GPU inline auto AbsDot(Normal3<T> n1, Normal3<T> n2) ->
 }
 
 template <typename T>
-PBRT_CPU_GPU inline Normal3<T> FaceForward(Normal3<T> n, Vector3<T> v) {
+inline Normal3<T> FaceForward(Normal3<T> n, Vector3<T> v) {
     return (Dot(n, v) < 0.f) ? -n : n;
 }
 
 template <typename T>
-PBRT_CPU_GPU inline Normal3<T> FaceForward(Normal3<T> n, Normal3<T> n2) {
+inline Normal3<T> FaceForward(Normal3<T> n, Normal3<T> n2) {
     return (Dot(n, n2) < 0.f) ? -n : n;
 }
 
 template <typename T>
-PBRT_CPU_GPU inline Vector3<T> FaceForward(Vector3<T> v, Vector3<T> v2) {
+inline Vector3<T> FaceForward(Vector3<T> v, Vector3<T> v2) {
     return (Dot(v, v2) < 0.f) ? -v : v;
 }
 
 template <typename T>
-PBRT_CPU_GPU inline Vector3<T> FaceForward(Vector3<T> v, Normal3<T> n2) {
+inline Vector3<T> FaceForward(Vector3<T> v, Normal3<T> n2) {
     return (Dot(v, n2) < 0.f) ? -v : v;
 }
 
 // Quaternion Inline Functions
-PBRT_CPU_GPU
+
 inline Quaternion operator*(Float f, Quaternion q) {
     return q * f;
 }
 
-PBRT_CPU_GPU inline Float Dot(Quaternion q1, Quaternion q2) {
+inline Float Dot(Quaternion q1, Quaternion q2) {
     return Dot(q1.v, q2.v) + q1.w * q2.w;
 }
 
-PBRT_CPU_GPU inline Float Length(Quaternion q) {
+inline Float Length(Quaternion q) {
     return std::sqrt(Dot(q, q));
 }
-PBRT_CPU_GPU inline Quaternion Normalize(Quaternion q) {
-    DCHECK_GT(Length(q), 0);
+inline Quaternion Normalize(Quaternion q) {
+    DCHECK(Length(q) > 0);
     return q / Length(q);
 }
 
-PBRT_CPU_GPU inline Float AngleBetween(Quaternion q1, Quaternion q2) {
+inline Float AngleBetween(Quaternion q1, Quaternion q2) {
     if (Dot(q1, q2) < 0)
         return Pi - 2 * SafeASin(Length(q1 + q2) / 2);
     else
@@ -1031,14 +1031,14 @@ PBRT_CPU_GPU inline Float AngleBetween(Quaternion q1, Quaternion q2) {
 }
 
 // http://www.plunk.org/~hatch/rightway.html
-PBRT_CPU_GPU inline Quaternion Slerp(Float t, Quaternion q1, Quaternion q2) {
+inline Quaternion Slerp(Float t, Quaternion q1, Quaternion q2) {
     Float theta = AngleBetween(q1, q2);
     Float sinThetaOverTheta = SinXOverX(theta);
     return q1 * (1 - t) * SinXOverX((1 - t) * theta) / sinThetaOverTheta +
            q2 * t * SinXOverX(t * theta) / sinThetaOverTheta;
 }
 
-};
+
 
 } // namespace dfpbrt
 
