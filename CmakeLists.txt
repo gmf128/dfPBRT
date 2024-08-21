@@ -1,0 +1,87 @@
+cmake_minimum_required(VERSION 3.8)
+
+# 定义项目名称和版本
+project(DFPBRT)
+
+# 设置 C++ 标准版本
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# set directories
+if (NOT DEFINED DFPBRT_SOURCE_CODE)
+  set (DFPBRT_SOURCE_CODE ${CMAKE_SOURCE_DIR})
+endif ()
+
+# Configuration options
+option (DFPBRT_FLOAT_AS_DOUBLE "Use 64-bit floats" OFF)
+
+if (DFPBRT_FLOAT_AS_DOUBLE)
+  #模板： list(APPEND listname "content")
+  list (APPEND DFPBRT_DEFINITIONS "PBRT_FLOAT_AS_DOUBLE")
+endif() #Remember to endif!!!
+
+if(WIN32)
+  list(APPEND DFPBRT_DEFINITIONS "PLATFORM_WINDOWS")
+endif()
+
+# 添加源文件和头文件
+SET(DFPBRT_SOURCE
+  src/dfpbrt/dfpbrt.cpp
+)
+SET(DFPBRT_SOURCE_HEADERS
+  src/dfpbrt/dfpbrt.h
+)
+SET (DFPBRT_UTIL_SOURCE
+  src/dfpbrt/util/vecmath.cpp
+  src/dfpbrt/util/float.cpp
+  src/dfpbrt/util/log.cpp
+)
+
+SET (DFPBRT_UTIL_SOURCE_HEADERS
+  src/dfpbrt/util/vecmath.h
+  src/dfpbrt/util/float.h
+  src/dfpbrt/util/log.h
+  src/dfpbrt/util/check.h
+)
+
+SET (DFPBRT_TEST_SOURCES
+  src/dfpbrt/util/vecmath_test.cpp
+  src/dfpbrt/util/float_test.cpp
+  src/dfpbrt/util/log_test.cpp
+)
+
+
+add_library(DFPBRT_LIB_STATIC
+${DFPBRT_SOURCE}
+${DFPBRT_SOURCE_HEADERS}
+${DFPBRT_UTIL_SOURCE}
+${DFPBRT_UTIL_SOURCE_HEADERS}
+
+src/ext/gtest/gtest-all.cc
+)
+
+set(ALL_LIB
+DFPBRT_LIB_STATIC
+)
+
+if(WIN32)
+  list(APPEND ALL_LIB "dbghelp" "wsock32" "ws2_32")
+endif(WIN32)
+
+
+# 为了简化包含路径，可以在 CMake 配置文件中指定包含目录，使得包含路径更简洁，避免使用相对路径。
+# 例如，你可以在 CMakeLists.txt 中使用 include_directories 或 target_include_directories 指令来添加包含路径：
+target_include_directories(DFPBRT_LIB_STATIC PUBLIC 
+  src)  #这样，就可以在src/dfpbrt/util/vecmath.h中使用#include <dfpbrt/dfpbrt.h>来引入 src/dfpbrt/dfpbrt.h这一个文件了
+
+# 定义可执行文件
+add_executable(dfpbrt_test src/dfpbrt/cmd/test.cpp ${DFPBRT_TEST_SOURCES})
+
+
+# 说明：这里面的表示符PRIVATE的意义：宏定义将仅对 该 库的编译过程生效。
+#   如果 该 库被其他目标（比如 main 可执行文件）链接，那么这些宏定义不会影响 main 的编译。main 可执行文件的编译将不会受到 该库 的 PRIVATE 宏定义的影响。
+target_compile_definitions (dfpbrt_test PRIVATE ${DFPBRT_DEFINITIONS})
+target_link_libraries(dfpbrt_test PUBLIC ${ALL_LIB})
+
+
+
