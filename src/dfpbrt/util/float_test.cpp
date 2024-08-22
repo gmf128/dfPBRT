@@ -6,7 +6,7 @@
 int i = 5;
 float s = 5.0;
     
-TEST(FloatingPoint, IsNan){
+TEST(FloatingPointTest, IsNanTest){
     EXPECT_EQ(dfpbrt::IsNaN(s), false) << "float s = 5.0 should not be Nan";
     
 };

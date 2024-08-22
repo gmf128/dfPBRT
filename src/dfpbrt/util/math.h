@@ -2,7 +2,9 @@
 #define DFPBRT_UTIL_MATH_H
 
 #include <dfpbrt/dfpbrt.h>
+#include <dfpbrt/util/float.h> 
 #include <cmath>
+#include <string>
 
 namespace dfpbrt{
 
@@ -16,6 +18,136 @@ constexpr Float Inv4Pi = 0.07957747154594766788;
 constexpr Float PiOver2 = 1.57079632679489661923;
 constexpr Float PiOver4 = 0.78539816339744830961;
 constexpr Float Sqrt2 = 1.41421356237309504880;
+
+
+
+// Interval Definition
+class Interval {
+  public:
+    // Interval Public Methods
+    Interval() = default;
+
+    
+    explicit Interval(Float v) : low(v), high(v) {}
+    constexpr Interval(Float low, Float high)
+        : low((std::min)(low, high)), high((std::max)(low, high)) {}
+
+    //Why static?
+    static Interval FromValueAndError(Float v, Float err) {
+        Interval i;
+        if (err == 0)
+            i.low = i.high = v;
+        else {
+            i.low = dfpbrt::SubRoundDown(v, err);
+            i.high = dfpbrt::AddRoundUp(v, err);
+        }
+        return i;
+    }
+
+    Interval &operator=(Float v) {
+        low = high = v;
+        return *this;
+    }
+
+    
+    Float UpperBound() const { return high; }
+    
+    Float LowerBound() const { return low; }
+    
+    Float Midpoint() const { return (low + high) / 2; }
+   
+    Float Width() const { return high - low; }
+
+    
+    Float operator[](int i) const {
+        DCHECK(i == 0 || i == 1);
+        return (i == 0) ? low : high;
+    }
+    
+    //type change from Interval to Point is change to its midpoint
+    explicit operator Float() const { return Midpoint(); }
+
+    bool Exactly(Float v) const { return low == v && high == v; }
+
+    bool operator==(Float v) const { return Exactly(v); }
+
+    Interval operator-() const { return {-high, -low}; }
+
+    Interval operator+(Interval i) const {
+        return {AddRoundDown(low, i.low), AddRoundUp(high, i.high)};
+    }
+
+    Interval operator-(Interval i) const {
+        return {SubRoundDown(low, i.high), SubRoundUp(high, i.low)};
+    }
+
+    Interval operator*(Interval i) const {
+        Float lp[4] = {MulRoundDown(low, i.low), MulRoundDown(high, i.low),
+                       MulRoundDown(low, i.high), MulRoundDown(high, i.high)};
+        Float hp[4] = {MulRoundUp(low, i.low), MulRoundUp(high, i.low),
+                       MulRoundUp(low, i.high), MulRoundUp(high, i.high)};
+        return {(std::min)({lp[0], lp[1], lp[2], lp[3]}),
+                (std::max)({hp[0], hp[1], hp[2], hp[3]})};
+    }
+
+    Interval operator/(Interval i) const;
+
+    bool operator==(Interval i) const {
+        return low == i.low && high == i.high;
+    }
+
+    bool operator!=(Float f) const { return f < low || f > high; }
+
+    std::string ToString() const;
+
+    Interval &operator+=(Interval i) {
+        *this = Interval(*this + i);
+        return *this;
+    }
+
+    Interval &operator-=(Interval i) {
+        *this = Interval(*this - i);
+        return *this;
+    }
+    Interval &operator*=(Interval i) {
+        *this = Interval(*this * i);
+        return *this;
+    }
+   Interval &operator/=(Interval i) {
+        *this = Interval(*this / i);
+        return *this;
+    }
+    
+    Interval &operator+=(Float f) { return *this += Interval(f); }
+    
+    Interval &operator-=(Float f) { return *this -= Interval(f); }
+    
+    Interval &operator*=(Float f) {
+        if (f > 0)
+            *this = Interval(MulRoundDown(f, low), MulRoundUp(f, high));
+        else
+            *this = Interval(MulRoundDown(f, high), MulRoundUp(f, low));
+        return *this;
+    }
+   
+    Interval &operator/=(Float f) {
+        if (f > 0)
+            *this = Interval(DivRoundDown(low, f), DivRoundUp(high, f));
+        else
+            *this = Interval(DivRoundDown(high, f), DivRoundUp(low, f));
+        return *this;
+    }
+
+
+    static const Interval Pi;
+
+
+  private:
+    //friend struct SOA<Interval>;
+    // Interval Private Members
+    Float low, high;
+};
+
 
 template <typename T>
 inline constexpr T Sqr(T v) {
@@ -64,6 +196,15 @@ inline auto DifferenceOfProducts(Ta a, Tb b, Tc c, Td d) {
     auto differenceOfProducts = std::fma(a, b, -cd);
     auto error = std::fma(-c, d, cd);
     return differenceOfProducts + error;
+}
+
+template <typename Ta, typename Tb, typename Tc, typename Td>
+inline auto SumOfProducts(Ta a, Tb b, Tc c, Td d) {
+    //calculte ab+cd with high precision
+    auto cd = c * d;
+    auto sumOfProducts = FMA(a, b, cd);
+    auto error = FMA(c, d, -cd);
+    return sumOfProducts + error;
 }
 
 inline bool Quadratic(float a, float b, float c, float *t0, float *t1) {

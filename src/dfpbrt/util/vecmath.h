@@ -59,6 +59,12 @@ namespace dfpbrt {
      extern template std::string internal::ToString3(int, int, int);
 
 
+     //If we dont define this func, the compiler will be confused when compiling the class Vector3fi=Vector3<Inteval>, since *Inteval* cannot pass the requirements defined in float.h
+     inline bool IsNaN(Interval fi) {
+          return dfpbrt::IsNaN(Float(fi));
+     }
+
+
    //tuple2
    template<template <typename> typename Child, typename T>
    class Tuple2{
@@ -263,9 +269,9 @@ template<template <typename> typename Child, typename T>
           }
           Tuple3(Child<T> c){
                CHECK(!c.HasNaN());
-               this.x = c.x;
-               this.y = c.y;
-               this.z = c.z;
+               x = c.x;
+               y = c.y;
+               z = c.z;
           }
           Child<T> &operator=(Child<T> c) {
                DCHECK(!c.HasNaN());
@@ -505,6 +511,46 @@ using Vector3f = Vector3<Float>;
 using Vector3i = Vector3<int>;
 
 
+// Vector3fi Definition
+class Vector3fi : public Vector3<Interval> {
+  public:
+    // Vector3fi Public Methods
+    using Vector3<Interval>::x;
+    using Vector3<Interval>::y;
+    using Vector3<Interval>::z;
+    using Vector3<Interval>::HasNaN;
+    using Vector3<Interval>::operator+;
+    using Vector3<Interval>::operator+=;
+    using Vector3<Interval>::operator*;
+    using Vector3<Interval>::operator*=;
+
+    Vector3fi() = default;
+    
+    Vector3fi(Float x, Float y, Float z)
+        : Vector3<Interval>(Interval(x), Interval(y), Interval(z)) {}
+    
+    Vector3fi(Interval x, Interval y, Interval z) : Vector3<Interval>(x, y, z) {}
+    
+    Vector3fi(Vector3f p)
+        : Vector3<Interval>(Interval(p.x), Interval(p.y), Interval(p.z)) {}
+    template <typename T>
+    explicit Vector3fi(Point3<T> p)
+        : Vector3<Interval>(Interval(p.x), Interval(p.y), Interval(p.z)) {}
+
+     Vector3fi(Vector3<Interval> pfi) : Vector3<Interval>(pfi) {}
+
+    
+    Vector3fi(Vector3f v, Vector3f e)
+        : Vector3<Interval>(Interval::FromValueAndError(v.x, e.x),
+                            Interval::FromValueAndError(v.y, e.y),
+                            Interval::FromValueAndError(v.z, e.z)) {}
+
+    Vector3f Error() const { return {x.Width() / 2, y.Width() / 2, z.Width() / 2}; }
+    
+    bool IsExact() const { return x.Width() == 0 && y.Width() == 0 && z.Width() == 0; }
+};
+
+
 // Point2 Definition
 template <typename T>
 class Point2 : public Tuple2<Point2, T> {
@@ -676,6 +722,76 @@ class Point3 : public Tuple3<Point3, T> {
 // Point3* Definitions
 using Point3f = Point3<Float>;
 using Point3i = Point3<int>;
+
+// Point3fi Definition
+class Point3fi : public Point3<Interval> {
+  public:
+    using Point3<Interval>::x;
+    using Point3<Interval>::y;
+    using Point3<Interval>::z;
+    using Point3<Interval>::HasNaN;
+    using Point3<Interval>::operator+;
+    using Point3<Interval>::operator*;
+    using Point3<Interval>::operator*=;
+
+    Point3fi() = default;
+    
+    Point3fi(Interval x, Interval y, Interval z) : Point3<Interval>(x, y, z) {}
+    
+    Point3fi(Float x, Float y, Float z)
+        : Point3<Interval>(Interval(x), Interval(y), Interval(z)) {}
+    
+    Point3fi(const Point3f &p)
+        : Point3<Interval>(Interval(p.x), Interval(p.y), Interval(p.z)) {}
+    
+    Point3fi(Point3<Interval> p) : Point3<Interval>(p) {}
+    
+    Point3fi(Point3f p, Vector3f e)
+        : Point3<Interval>(Interval::FromValueAndError(p.x, e.x),
+                           Interval::FromValueAndError(p.y, e.y),
+                           Interval::FromValueAndError(p.z, e.z)) {}
+
+    
+    Vector3f Error() const { return {x.Width() / 2, y.Width() / 2, z.Width() / 2}; }
+    
+    bool IsExact() const { return x.Width() == 0 && y.Width() == 0 && z.Width() == 0; }
+
+    // Meh--can't seem to get these from Point3 via using declarations...
+    template <typename U>
+    Point3fi operator+(Vector3<U> v) const {
+        DCHECK(!v.HasNaN());
+        return {x + v.x, y + v.y, z + v.z};
+    }
+    template <typename U>
+    Point3fi &operator+=(Vector3<U> v) {
+        DCHECK(!v.HasNaN());
+        x += v.x;
+        y += v.y;
+        z += v.z;
+        return *this;
+    }
+
+    Point3fi operator-() const { return {-x, -y, -z}; }
+
+    template <typename U>
+    Point3fi operator-(Point3<U> p) const {
+        DCHECK(!p.HasNaN());
+        return {x - p.x, y - p.y, z - p.z};
+    }
+    template <typename U>
+    Point3fi operator-(Vector3<U> v) const {
+        DCHECK(!v.HasNaN());
+        return {x - v.x, y - v.y, z - v.z};
+    }
+    template <typename U>
+    Point3fi &operator-=(Vector3<U> v) {
+        DCHECK(!v.HasNaN());
+        x -= v.x;
+        y -= v.y;
+        z -= v.z;
+        return *this;
+    }
+};
 
 // Normal3 Definition
 template <typename T>
