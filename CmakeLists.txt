@@ -27,9 +27,11 @@ endif()
 # 添加源文件和头文件
 SET(DFPBRT_SOURCE
   src/dfpbrt/dfpbrt.cpp
+  src/dfpbrt/ray.cpp
 )
 SET(DFPBRT_SOURCE_HEADERS
   src/dfpbrt/dfpbrt.h
+  src/dfpbrt/ray.h
 )
 SET (DFPBRT_UTIL_SOURCE
   src/dfpbrt/util/vecmath.cpp
@@ -47,7 +49,9 @@ SET (DFPBRT_UTIL_SOURCE_HEADERS
 SET (DFPBRT_TEST_SOURCES
   src/dfpbrt/util/vecmath_test.cpp
   src/dfpbrt/util/float_test.cpp
-  src/dfpbrt/util/log
+  src/dfpbrt/util/log_test.cpp
+  src/dfpbrt/ray_test.cpp
+
 )
 
 
