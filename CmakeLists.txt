@@ -82,3 +82,6 @@ add_executable(dfpbrt_test src/dfpbrt/cmd/test.cpp ${DFPBRT_TEST_SOURCES})
 #   如果 该 库被其他目标（比如 main 可执行文件）链接，那么这些宏定义不会影响 main 的编译。main 可执行文件的编译将不会受到 该库 的 PRIVATE 宏定义的影响。
 target_compile_definitions (dfpbrt_test PRIVATE ${DFPBRT_DEFINITIONS})
 target_link_libraries(dfpbrt_test PUBLIC ${ALL_LIB})
+
+
+
