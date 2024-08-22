@@ -613,11 +613,12 @@ class Point2 : public Tuple2<Point2, T> {
         return *this;
     }
 
+
+};
+
 // Point2* Definitions
 using Point2f = Point2<Float>;
 using Point2i = Point2<int>;
-
-
 
 // https://www.iquilezles.org/www/articles/ibilinear/ibilinear.htm,
 // with a fix for perfect quads
@@ -651,8 +652,6 @@ inline Point2f InvertBilinear(Point2f p, std::span<const Point2f> vert) {
         return Point2f((h.x - f.x * v1) / (e.x + g.x * v1), v1);
     return Point2f(u, v0);
 }
-
-};
 
 // Point3 Definition
 template <typename T>
@@ -1153,6 +1152,241 @@ inline Quaternion Slerp(Float t, Quaternion q1, Quaternion q2) {
     return q1 * (1 - t) * SinXOverX((1 - t) * theta) / sinThetaOverTheta +
            q2 * t * SinXOverX(t * theta) / sinThetaOverTheta;
 }
+
+
+// Bounding Boxes
+
+// Bounds2 Definition
+template <typename T>
+class Bounds2 {
+  public:
+    // Bounds2 Public Methods
+    Bounds2() {
+        //default initialization: whole space not zero space
+        T minNum = std::numeric_limits<T>::lowest();
+        T maxNum = (std::numeric_limits<T>::max)();
+        pMin = Point2<T>(maxNum, maxNum);
+        pMax = Point2<T>(minNum, minNum);
+    }
+    
+    explicit Bounds2(Point2<T> p) : pMin(p), pMax(p) {}
+    
+    Bounds2(Point2<T> p1, Point2<T> p2) : pMin(Min(p1, p2)), pMax(Max(p1, p2)) {}
+
+    template <typename U>
+    explicit Bounds2(const Bounds2<U> &b) {
+        if (b.IsEmpty())
+            // Be careful about overflowing float->int conversions and the
+            // like.
+            *this = Bounds2<T>();
+        else {
+            pMin = Point2<T>(b.pMin);
+            pMax = Point2<T>(b.pMax);
+        }
+    }
+
+    //Diagnal vector
+    Vector2<T> Diagonal() const { return pMax - pMin; }
+
+    //2D, so return the area of the rectangle
+    T Area() const {
+        Vector2<T> d = pMax - pMin;
+        return d.x * d.y;
+    }
+
+    bool IsEmpty() const { return pMin.x >= pMax.x || pMin.y >= pMax.y; }
+
+    bool IsDegenerate() const { return pMin.x > pMax.x || pMin.y > pMax.y; }
+
+    int MaxDimension() const {
+        Vector2<T> diag = Diagonal();
+        if (diag.x > diag.y)
+            return 0;
+        else
+            return 1;
+    }
+    
+    Point2<T> operator[](int i) const {
+        DCHECK(i == 0 || i == 1);
+        return (i == 0) ? pMin : pMax;
+    }
+    
+    Point2<T> &operator[](int i) {
+        DCHECK(i == 0 || i == 1);
+        return (i == 0) ? pMin : pMax;
+    }
+    
+    bool operator==(const Bounds2<T> &b) const {
+        return b.pMin == pMin && b.pMax == pMax;
+    }
+    
+    bool operator!=(const Bounds2<T> &b) const {
+        return b.pMin != pMin || b.pMax != pMax;
+    }
+    
+    Point2<T> Corner(int corner) const {
+        DCHECK(corner >= 0 && corner < 4);
+        return Point2<T>((*this)[(corner & 1)].x, (*this)[(corner & 2) ? 1 : 0].y);
+    }
+    
+    Point2<T> Lerp(Point2f t) const {
+        return Point2<T>(dfpbrt::Lerp(t.x, pMin.x, pMax.x),
+                         dfpbrt::Lerp(t.y, pMin.y, pMax.y));
+    }
+    
+    Vector2<T> Offset(Point2<T> p) const {
+        Vector2<T> o = p - pMin;
+        if (pMax.x > pMin.x)
+            o.x /= pMax.x - pMin.x;
+        if (pMax.y > pMin.y)
+            o.y /= pMax.y - pMin.y;
+        return o;
+    }
+    
+    void BoundingSphere(Point2<T> *c, Float *rad) const {
+        *c = (pMin + pMax) / 2;
+        *rad = Inside(*c, *this) ? Distance(*c, pMax) : 0;
+    }
+
+    std::string ToString() const { return StringPrintf("[ %s - %s ]", pMin, pMax); }
+
+    // Bounds2 Public Members
+    Point2<T> pMin, pMax;
+};
+
+// Bounds3 Definition
+template <typename T>
+class Bounds3 {
+  public:
+    // Bounds3 Public Methods
+    
+    Bounds3() {
+        T minNum = std::numeric_limits<T>::lowest();
+        T maxNum = (std::numeric_limits<T>::max)();
+        pMin = Point3<T>(maxNum, maxNum, maxNum);
+        pMax = Point3<T>(minNum, minNum, minNum);
+    }
+
+   
+    explicit Bounds3(Point3<T> p) : pMin(p), pMax(p) {}
+
+    
+    Bounds3(Point3<T> p1, Point3<T> p2) : pMin(Min(p1, p2)), pMax(Max(p1, p2)) {}
+
+    
+    Point3<T> operator[](int i) const {
+        DCHECK(i == 0 || i == 1);
+        return (i == 0) ? pMin : pMax;
+    }
+    
+    Point3<T> &operator[](int i) {
+        DCHECK(i == 0 || i == 1);
+        return (i == 0) ? pMin : pMax;
+    }
+
+    
+    Point3<T> Corner(int corner) const {
+        DCHECK(corner >= 0 && corner < 8);
+        return Point3<T>((*this)[(corner & 1)].x, (*this)[(corner & 2) ? 1 : 0].y,
+                         (*this)[(corner & 4) ? 1 : 0].z);
+    }
+
+    
+    Vector3<T> Diagonal() const { return pMax - pMin; }
+
+    
+    T SurfaceArea() const {
+        Vector3<T> d = Diagonal();
+        return 2 * (d.x * d.y + d.x * d.z + d.y * d.z);
+    }
+
+    
+    T Volume() const {
+        Vector3<T> d = Diagonal();
+        return d.x * d.y * d.z;
+    }
+
+    
+    int MaxDimension() const {
+        Vector3<T> d = Diagonal();
+        if (d.x > d.y && d.x > d.z)
+            return 0;
+        else if (d.y > d.z)
+            return 1;
+        else
+            return 2;
+    }
+
+    
+    Point3f Lerp(Point3f t) const {
+        return Point3f(dfpbrt::Lerp(t.x, pMin.x, pMax.x), dfpbrt::Lerp(t.y, pMin.y, pMax.y),
+                       dfpbrt::Lerp(t.z, pMin.z, pMax.z));
+    }
+
+    
+    Vector3f Offset(Point3f p) const {
+        Vector3f o = p - pMin;
+        if (pMax.x > pMin.x)
+            o.x /= pMax.x - pMin.x;
+        if (pMax.y > pMin.y)
+            o.y /= pMax.y - pMin.y;
+        if (pMax.z > pMin.z)
+            o.z /= pMax.z - pMin.z;
+        return o;
+    }
+
+    
+    void BoundingSphere(Point3<T> *center, Float *radius) const {
+        *center = (pMin + pMax) / 2;
+        *radius = Inside(*center, *this) ? Distance(*center, pMax) : 0;
+    }
+
+    
+    bool IsEmpty() const {
+        return pMin.x >= pMax.x || pMin.y >= pMax.y || pMin.z >= pMax.z;
+    }
+   
+    bool IsDegenerate() const {
+        return pMin.x > pMax.x || pMin.y > pMax.y || pMin.z > pMax.z;
+    }
+
+    template <typename U>
+    explicit Bounds3(const Bounds3<U> &b) {
+        if (b.IsEmpty())
+            // Be careful about overflowing float->int conversions and the
+            // like.
+            *this = Bounds3<T>();
+        else {
+            pMin = Point3<T>(b.pMin);
+            pMax = Point3<T>(b.pMax);
+        }
+    }
+    
+    bool operator==(const Bounds3<T> &b) const {
+        return b.pMin == pMin && b.pMax == pMax;
+    }
+    
+    bool operator!=(const Bounds3<T> &b) const {
+        return b.pMin != pMin || b.pMax != pMax;
+    }
+    
+    bool IntersectP(Point3f o, Vector3f d, Float tMax = Infinity, Float *hitt0 = nullptr,
+                    Float *hitt1 = nullptr) const;
+    
+    bool IntersectP(Point3f o, Vector3f d, Float tMax, Vector3f invDir,
+                    const int dirIsNeg[3]) const;
+
+    std::string ToString() const { return StringPrintf("[ %s - %s ]", pMin, pMax); }
+
+    // Bounds3 Public Members
+    Point3<T> pMin, pMax;
+};
+
+// Bounds[23][fi] Definitions
+using Bounds2f = Bounds2<Float>;
+using Bounds2i = Bounds2<int>;
+using Bounds3f = Bounds3<Float>;
+using Bounds3i = Bounds3<int>;
 
 
 
