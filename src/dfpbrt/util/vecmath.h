@@ -1598,7 +1598,78 @@ inline Bounds2<T> Union(const Bounds2<T> &b, Point2<T> p) {
 }
 
 
-//Sphere
+// Spherical Geometry Functions
+// Cartesian coordinates and spherical coordinates
+// unit vector(directions)
+inline Vector3f SphericalDirection(Float sinTheta, Float cosTheta, Float phi){
+     //Notice that the function is given the sine and cosine of theta, rather than eheta itself. This is because the sine and cosine of theta are often already available to the caller. This is not normally the case for phi, however, so phi is passed in as is.
+     DCHECK(sinTheta >= -1.0001 && sinTheta <= 1.0001);
+     DCHECK(cosTheta >= -1.0001 && cosTheta <= 1.0001);
+     return {  
+          Clamp(sinTheta, -1, 1) * std::cos(phi),
+          Clamp(sinTheta, -1, 1) * std::sin(phi),
+          Clamp(cosTheta, -1, 1)
+     };
+}
+// Then we try to get sintheta, costheta and phi from a normalized vector
+inline Float CosTheta(Vector3f v){
+     DCHECK(v.z >= -1.0001 && v.z <= 1.0001)
+     return v.z;
+}
+
+inline Float Cos2Theta(Vector3f v){
+     DCHECK(v.z >= -1.0001 && v.z <= 1.0001)
+     return Sqr(v.z);
+}
+
+inline Float Sin2Theta(Veator3f v){
+     return std::max<Float>(0, 1-Cos2Theta(v));
+}
+
+inline Float SinTheta(Vector3f v){
+     return std::sqrt(Sin2Theta(v));
+}
+
+inline Float TanTheta(Vector3f v){
+     return SinTheta(v) / CosTheta(v);
+}
+
+inline Float Tan2Theta(Vector3f v){
+     return Sin2Theta(v)/Cos2Theta(v);
+}
+
+inline Float SphericalTheta(Vector3f v){
+     return SafeACos(CosTheta(v));
+}
+
+inline Float SpheriacalPhi(Vector3f v){
+     //tan:= sin/cos so, atan2(sin, cos) = atan2(v.y, v.x)
+     Float tmp = std::atan2(v.y, v.x);
+     return (tmp < 0? tmp + Pi * 2 : tmp);// Phi range [0. 2*Pi)
+}
+
+inline Float CosPhi(Vector3f v){
+     Float sintheta = SinTheta(v);
+     return (sintheta == 0) ? 1 : (v.x / sintheta);
+}
+
+inline Float SinPhi(Vector3f v){
+     Float sintheta = SinTheta(v);
+     return (sintheta == 0) ? 0 : (v.y / sintheta);
+}
+
+//Spherical area function(triangle and quadrilateral)
+inline Float SphericalTriangleArea(Vector3f a, Vector3f b, Vector3f c) {
+    return std::abs(
+        2 * std::atan2(Dot(a, Cross(b, c)), 1 + Dot(a, b) + Dot(a, c) + Dot(b, c)));
+}
+
+inline Float SphericalQuadArea(Vector3f a, Vector3f b, Vector3f c, Vector3f d){
+     //TODO:
+}
+
+
+
 
 
 } // namespace dfpbrt
