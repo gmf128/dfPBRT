@@ -1531,12 +1531,13 @@ inline bool InsideExclusive(Point3<T> p, const Bounds3<T> &b) {
             p.z >= b.pMin.z && p.z < b.pMax.z);
 }
 
+//https://pbr-book.org/4ed/Geometry_and_Transformations/Bounding_Boxes Gives an illustration
 template <typename T, typename U>
 inline auto DistanceSquared(Point3<T> p, const Bounds3<U> &b) {
     using TDist = decltype(T{} - U{});
-    TDist dx = (std::max)<TDist>({0, b.pMin.x - p.x, p.x - b.pMax.x});
-    TDist dy = (std::max)<TDist>({0, b.pMin.y - p.y, p.y - b.pMax.y});
-    TDist dz = (std::max)<TDist>({0, b.pMin.z - p.z, p.z - b.pMax.z});
+    TDist dx = (std::max<TDist>)({0, b.pMin.x - p.x, p.x - b.pMax.x});
+    TDist dy = (std::max<TDist>)({0, b.pMin.y - p.y, p.y - b.pMax.y});
+    TDist dz = (std::max<TDist>)({0, b.pMin.z - p.z, p.z - b.pMax.z});
     return Sqr(dx) + Sqr(dy) + Sqr(dz);
 }
 
@@ -1595,6 +1596,9 @@ inline Bounds2<T> Union(const Bounds2<T> &b, Point2<T> p) {
     ret.pMax = Max(b.pMax, p);
     return ret;
 }
+
+
+//Sphere
 
 
 } // namespace dfpbrt
