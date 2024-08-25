@@ -1613,17 +1613,17 @@ inline Vector3f SphericalDirection(Float sinTheta, Float cosTheta, Float phi){
 }
 // Then we try to get sintheta, costheta and phi from a normalized vector
 inline Float CosTheta(Vector3f v){
-     DCHECK(v.z >= -1.0001 && v.z <= 1.0001)
+     DCHECK(v.z >= -1.0001 && v.z <= 1.0001);
      return v.z;
 }
 
 inline Float Cos2Theta(Vector3f v){
-     DCHECK(v.z >= -1.0001 && v.z <= 1.0001)
+     DCHECK(v.z >= -1.0001 && v.z <= 1.0001);
      return Sqr(v.z);
 }
 
-inline Float Sin2Theta(Veator3f v){
-     return std::max<Float>(0, 1-Cos2Theta(v));
+inline Float Sin2Theta(Vector3f v){
+     return (std::max<Float>)(0, 1-Cos2Theta(v));
 }
 
 inline Float SinTheta(Vector3f v){
@@ -1668,6 +1668,56 @@ inline Float SphericalQuadArea(Vector3f a, Vector3f b, Vector3f c, Vector3f d){
      //TODO:
 }
 
+// Octahedral Encoding
+// OctahedralVector Definition
+class OctahedralVector {
+  public:
+    // OctahedralVector Public Methods
+    OctahedralVector() = default;
+    OctahedralVector(Vector3f v) {
+        v /= std::abs(v.x) + std::abs(v.y) + std::abs(v.z);
+        if (v.z >= 0) {
+            x = Encode(v.x);
+            y = Encode(v.y);
+        } else {
+            // Encode octahedral vector with $z < 0$
+            x = Encode((1 - std::abs(v.y)) * Sign(v.x));
+            y = Encode((1 - std::abs(v.x)) * Sign(v.y));
+        }
+    }
+
+    explicit operator Vector3f() const {
+        Vector3f v;
+        v.x = -1 + 2 * (x / 65535.f);
+        v.y = -1 + 2 * (y / 65535.f);
+        v.z = 1 - (std::abs(v.x) + std::abs(v.y));
+        // Reparameterize directions in the $z<0$ portion of the octahedron
+        if (v.z < 0) {
+            Float xo = v.x;
+            v.x = (1 - std::abs(v.y)) * Sign(xo);
+            v.y = (1 - std::abs(xo)) * Sign(v.y);
+        }
+
+        return Normalize(v);
+    }
+
+    std::string ToString() const {
+        //return StringPrintf("[ OctahedralVector x: %d y: %d ]", x, y);
+        // using std::format instead
+        return std::format("[ OctahedralVector x: %d y: %d ]", x, y);
+    }
+
+  private:
+    // OctahedralVector Private Methods
+    static Float Sign(Float v) { return std::copysign(1.f, v); }
+
+    static uint16_t Encode(Float f) {
+        return std::round(Clamp((f + 1) / 2, 0, 1) * 65535.f);
+    }
+
+    // OctahedralVector Private Members
+    uint16_t x, y;
+};
 
 
 

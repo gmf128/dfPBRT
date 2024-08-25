@@ -8,6 +8,7 @@
 //Cpp 20
 #include <concepts>
 #include <type_traits>
+#include <format>
 
 //Platform specific
 //todo: using macro to check the platform
