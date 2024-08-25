@@ -37,6 +37,7 @@ SET (DFPBRT_UTIL_SOURCE
   src/dfpbrt/util/vecmath.cpp
   src/dfpbrt/util/float.cpp
   src/dfpbrt/util/log.cpp
+  src/dfpbrt/util/transform.cpp
 )
 
 SET (DFPBRT_UTIL_SOURCE_HEADERS
@@ -44,6 +45,7 @@ SET (DFPBRT_UTIL_SOURCE_HEADERS
   src/dfpbrt/util/float.h
   src/dfpbrt/util/log.h
   src/dfpbrt/util/check.h
+  src/dfpbrt/util/transform.h
 )
 
 SET (DFPBRT_TEST_SOURCES
@@ -51,7 +53,7 @@ SET (DFPBRT_TEST_SOURCES
   src/dfpbrt/util/float_test.cpp
   src/dfpbrt/util/log_test.cpp
   src/dfpbrt/ray_test.cpp
-
+  src/dfpbrt/util/transform_test.cpp
 )
 
 
