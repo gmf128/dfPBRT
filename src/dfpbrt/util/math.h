@@ -2,7 +2,8 @@
 #define DFPBRT_UTIL_MATH_H
 
 #include <dfpbrt/dfpbrt.h>
-#include <dfpbrt/util/float.h> 
+#include <dfpbrt/util/float.h>
+#include <dfpbrt/util/check.h>
 #include <cmath>
 #include <string>
 #include <span>
@@ -611,7 +612,7 @@ inline SquareMatrix<N> operator*(const SquareMatrix<N> &m1,
 
 template <int N>
 inline SquareMatrix<N>::SquareMatrix(std::span<const Float> t) {
-    CHECK_EQ(N * N, t.size());
+    CHECK(N * N == t.size());
     for (int i = 0; i < N * N; ++i)
         m[i / N][i % N] = t[i];
 }
