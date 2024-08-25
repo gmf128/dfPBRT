@@ -1669,7 +1669,7 @@ inline Float SphericalQuadArea(Vector3f a, Vector3f b, Vector3f c, Vector3f d){
 }
 
 // Octahedral Encoding
-// OctahedralVector Definition
+// OctahedralVector Definition, ref: https://pbr-book.org/4ed/Geometry_and_Transformations/Spherical_Geometry
 class OctahedralVector {
   public:
     // OctahedralVector Public Methods
@@ -1718,6 +1718,69 @@ class OctahedralVector {
     // OctahedralVector Private Members
     uint16_t x, y;
 };
+
+// DirectionCone Definition
+class DirectionCone {
+  public:
+    // DirectionCone Public Methods
+    DirectionCone() = default;
+    DirectionCone(Vector3f w, Float cosTheta) : w(Normalize(w)), cosTheta(cosTheta) {}
+    //default: 90 degree
+    explicit DirectionCone(Vector3f w) : DirectionCone(w, 1) {}
+
+    //empty: not theta==0, but theta == infty
+    bool IsEmpty() const { return cosTheta == Infinity_; }
+
+    static DirectionCone EntireSphere() { return DirectionCone(Vector3f(0, 0, 1), -1); }
+
+    std::string ToString() const;
+
+    Vector3f ClosestVectorInCone(Vector3f wp) const;
+
+    // DirectionCone Public Members
+    Vector3f w;
+    Float cosTheta = Infinity_;
+};
+
+// DirectionCone Inline Functions
+inline bool Inside(const DirectionCone &d, Vector3f w) {
+    return !d.IsEmpty() && Dot(d.w, Normalize(w)) >= d.cosTheta;
+}
+
+// Given a bbox and a point p, return the boundcone representing the valid directions seen from p w.r.t the bbox(naturally, not precise)
+inline DirectionCone BoundSubtendedDirections(const Bounds3f &b, Point3f p) {
+    // Compute bounding sphere for _b_ and check if _p_ is inside
+    Float radius;
+    Point3f pCenter;
+    b.BoundingSphere(&pCenter, &radius);
+    if (DistanceSquared(p, pCenter) < Sqr(radius))
+        return DirectionCone::EntireSphere();
+
+    // Compute and return _DirectionCone_ for bounding sphere
+    Vector3f w = Normalize(pCenter - p);
+    Float sin2ThetaMax = Sqr(radius) / DistanceSquared(pCenter, p);
+    Float cosThetaMax = SafeSqrt(1 - sin2ThetaMax);
+    return DirectionCone(w, cosThetaMax);
+}
+
+// Union of two cone into one whcih bounds both of them
+inline Vector3f DirectionCone::ClosestVectorInCone(Vector3f wp) const {
+    DCHECK(!IsEmpty());
+    wp = Normalize(wp);
+    // Return provided vector if it is inside the cone
+    if (Dot(wp, w) > cosTheta)
+        return wp;
+
+    // Find closest vector by rotating _wp_ until it touches the cone
+    Float sinTheta = -SafeSqrt(1 - cosTheta * cosTheta);
+    Vector3f a = Cross(wp, w);
+    return cosTheta * w +
+           (sinTheta / Length(a)) *
+               Vector3f(w.x * (wp.y * w.y + wp.z * w.z) - wp.x * (Sqr(w.y) + Sqr(w.z)),
+                        w.y * (wp.x * w.x + wp.z * w.z) - wp.y * (Sqr(w.x) + Sqr(w.z)),
+                        w.z * (wp.x * w.x + wp.y * w.y) - wp.z * (Sqr(w.x) + Sqr(w.y)));
+}
+
 
 
 

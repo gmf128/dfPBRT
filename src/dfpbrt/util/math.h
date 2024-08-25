@@ -189,6 +189,17 @@ inline double SafeACos(double x) {
     return std::acos(Clamp(x, -1, 1));
 }
 
+inline float SafeSqrt(float x){
+    DCHECK(x >= -1e-3); // not too negative
+    return std::sqrt((std::max<float>)({0, x}));
+}\
+
+inline double SafeSqrt(double x){
+    DCHECK(x >= -1e-3);
+    return std::sqrt((std::max<double>)({0, x}));
+}
+
+
 template <typename Ta, typename Tb, typename Tc, typename Td>
 inline auto DifferenceOfProducts(Ta a, Tb b, Tc c, Td d) {
     //calculate ab-cd with high precision

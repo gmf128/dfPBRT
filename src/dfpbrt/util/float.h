@@ -13,6 +13,8 @@ namespace dfpbrt{
     
     //constants
     #define MachineEpsilon std::numeric_limits<Float>::epsilon() * 0.5f
+    //using _ as alias in order not to cause same definitions errors
+    #define Infinity_  std::numeric_limits<Float>::infinity() 
 
 
     // Floating-point Inline Functions
