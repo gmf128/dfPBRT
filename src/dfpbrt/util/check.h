@@ -10,7 +10,7 @@ namespace dfpbrt{
     //CHECK(x) : x is a boolean expression whose value is either true or false. Here, if the value is false(cannot pass the check), then LOG_FATAL
     //(LOG_FATAL(...), true) is a comma expression, whose value is true(the latter one)
     //TODO: #define CHECK(x) (!(!(x) && (LOG_FATAL("Check failed: %s", #x), true)))
-    #define CHECK(x) (!(!(x) && (LOG_FATAL("Check failed"), true)))
+  #define CHECK(x) (!(!(x) && (LOG_FATAL(std::format("Check failed {:s}", #x)), true)))
     #define DCHECK(x) CHECK(x)
 
     // CheckCallbackScope Definition

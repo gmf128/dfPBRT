@@ -72,15 +72,15 @@ namespace dfpbrt {
           static const int nDimensions = 2;
           // Constructor
           Tuple2() = default;
-          Tuple2(T x, T y): x(x), y(y){CHECK(HasNaN()); }
+          Tuple2(T x, T y): x(x), y(y){ DCHECK(!HasNaN()); }
 
           bool HasNaN() const{
                return (IsNaN(x) || IsNaN(y));
           }
           Tuple2(Child<T> c){
-               CHECK(!c.HasNaN());
-               this.x = c.x;
-               this.y = c.y;
+               DCHECK(!c.HasNaN());
+               x = c.x;
+               y = c.y;
           }
           Child<T> &operator=(Child<T> c) {
                DCHECK(!c.HasNaN());
@@ -91,28 +91,28 @@ namespace dfpbrt {
           //numerical operations
           template <typename U>
           auto operator+(Child<U> d) const -> Child<decltype(T{}+U{})>{
-               CHECK(!d.HasNaN());
+               DCHECK(!d.HasNaN());
                return {x + d.x, y + d.y};
           }
 
           template <typename U>
           requires Addi_compatibility<T, U>
           Child<T> & operator+=(Child<U> d) {
-               CHECK(!d.HasNaN());
+               DCHECK(!d.HasNaN());
                x += d.x;
                y += d.y;
                return static_cast<Child<T> &>(*this);
           }
           template <typename U>
           auto operator-(Child<U> d) const -> Child<decltype(T{}-U{})>{
-               CHECK(!d.HasNaN());
+               DCHECK(!d.HasNaN());
                return {x - d.x, y - d.y};
           }
 
           template <typename U>
           requires Addi_compatibility<T, U>
           Child<T> & operator-=(Child<U> d) {
-               CHECK(!d.HasNaN());
+               DCHECK(!d.HasNaN());
                x -= d.x;
                y -= d.y;
                return static_cast<Child<T> &>(*this);
@@ -262,7 +262,7 @@ template<template <typename> typename Child, typename T>
           static const int nDimensions = 3;
           // Constructor
           Tuple3() = default;
-          Tuple3(T x, T y, T z): x(x), y(y), z(z){CHECK(HasNaN()); }
+          Tuple3(T x, T y, T z): x(x), y(y), z(z){DCHECK(!HasNaN()); }
 
           bool HasNaN() const{
                return (IsNaN(x) || IsNaN(y) || IsNaN(z));
