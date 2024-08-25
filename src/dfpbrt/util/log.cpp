@@ -45,7 +45,7 @@ uint32_t GetThreadIndex() {
     }
 }
 
-    void dfpbrt::Log_Fatal(LogLevel loglevel, const char *file, int line, const char* s){
+    void dfpbrt::Log_Fatal(LogLevel loglevel, const char *file, int line, std::string s){
         assert(loglevel == LogLevel::Fatal);
         static std::mutex mutex;
         std::lock_guard<std::mutex> lock(mutex);
@@ -54,7 +54,7 @@ uint32_t GetThreadIndex() {
         const char *fileStart = strstr(file, "dfpbrt/");
         std::string shortfile(fileStart ? (fileStart + 5) : file);
         fprintf(stderr, "[ " LOG_BASE_FMT " %s:%d ] %s %s\n", LOG_BASE_ARGS,
-                shortfile.c_str(), line, ToString(loglevel).c_str(), s);
+                shortfile.c_str(), line, ToString(loglevel).c_str(), s.c_str());
 
         CheckCallbackScope::Fail();
         abort();
