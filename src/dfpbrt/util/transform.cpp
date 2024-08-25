@@ -91,5 +91,7 @@ namespace dfpbrt{
     }
 
 
-
+std::string Transform::ToString() const {
+    return std::format("[ m: {0:s} mInv: {1:s} ]", m.ToString(), mInv.ToString());
+}
 }

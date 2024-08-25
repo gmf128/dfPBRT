@@ -51,6 +51,16 @@ class Transform{
     template<typename T>
     Normal3<T> operator()(Normal3<T> n) const;
 
+
+    //ApplyInverse transformations
+    //Apply transformations
+    template<typename T>
+    Vector3<T> ApplyInverse(Vector3<T> v) const;
+    template<typename T>
+    Point3<T> ApplyInverse(Point3<T> p) const;
+    template<typename T>
+    Normal3<T> ApplyInverse(Normal3<T> n) const;
+
     bool HasScale(Float tolerance = 1e-3f) const {
         Float la2 = LengthSquared((*this)(Vector3f(1, 0, 0)));
         Float lb2 = LengthSquared((*this)(Vector3f(0, 1, 0)));
@@ -59,7 +69,7 @@ class Transform{
                 std::abs(lc2 - 1) > tolerance);
     }
 
-
+    std::string ToString() const;
     private:
         SquareMatrix<4> m, mInv;
 };
@@ -135,6 +145,34 @@ inline Transform RotateFromTo(Vector3f from, Vector3f to) {
                       4 * Dot(u, v) / (Dot(u, u) * Dot(v, v)) * v[i] * u[j];
 
     return Transform(r, Transpose(r));
+}
+
+// Transform Inline Methods
+template <typename T>
+inline Point3<T> Transform::operator()(Point3<T> p) const {
+    T xp = m[0][0] * p.x + m[0][1] * p.y + m[0][2] * p.z + m[0][3];
+    T yp = m[1][0] * p.x + m[1][1] * p.y + m[1][2] * p.z + m[1][3];
+    T zp = m[2][0] * p.x + m[2][1] * p.y + m[2][2] * p.z + m[2][3];
+    T wp = m[3][0] * p.x + m[3][1] * p.y + m[3][2] * p.z + m[3][3];
+    if (wp == 1)
+        return Point3<T>(xp, yp, zp);
+    else
+        return Point3<T>(xp, yp, zp) / wp;
+}
+
+template <typename T>
+inline Vector3<T> Transform::operator()(Vector3<T> v) const {
+    return Vector3<T>(m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z,
+                      m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z,
+                      m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z);
+}
+
+template <typename T>
+inline Normal3<T> Transform::operator()(Normal3<T> n) const {
+    T x = n.x, y = n.y, z = n.z;
+    return Normal3<T>(mInv[0][0] * x + mInv[1][0] * y + mInv[2][0] * z,
+                      mInv[0][1] * x + mInv[1][1] * y + mInv[2][1] * z,
+                      mInv[0][2] * x + mInv[1][2] * y + mInv[2][2] * z);
 }
 
 }
