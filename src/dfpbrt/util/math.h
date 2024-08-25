@@ -167,6 +167,13 @@ struct CompensatedFloat {
 };
 
 
+inline Float Radians(Float deg) {
+    return (Pi / 180) * deg;
+}
+inline Float Degrees(Float rad) {
+    return (180 / Pi) * rad;
+}
+
 template <typename T>
 inline constexpr T Sqr(T v) {
     return v * v;
