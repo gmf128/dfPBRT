@@ -37,6 +37,8 @@ class Transform{
 
     Transform(const SquareMatrix<4> &m, const SquareMatrix<4> &mInv): m(m), mInv(mInv){}
 
+    explicit Transform(const Frame &frame);
+
     const SquareMatrix<4> &GetMatrix() const { return m; }
     const SquareMatrix<4> &GetInverseMatrix() const { return mInv; }
 
@@ -73,6 +75,19 @@ class Transform{
                                         Float *tMax = nullptr) const;
 
 
+    //Composition of transformations
+    Transform operator*(const Transform &t2) const {
+    return Transform(m * t2.m, t2.mInv * mInv);
+    }
+    
+    //boolean traits of transformations
+    bool SwapsHandedness() const {
+        // to check if the transformation cause swapping of the handedness
+        SquareMatrix<3> s(m[0][0], m[0][1], m[0][2],
+                        m[1][0], m[1][1], m[1][2],
+                        m[2][0], m[2][1], m[2][2]);
+        return Determinant(s) < 0;
+    }
     bool HasScale(Float tolerance = 1e-3f) const {
         Float la2 = LengthSquared((*this)(Vector3f(1, 0, 0)));
         Float lb2 = LengthSquared((*this)(Vector3f(0, 1, 0)));

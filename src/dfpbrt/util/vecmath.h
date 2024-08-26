@@ -1781,6 +1781,82 @@ inline Vector3f DirectionCone::ClosestVectorInCone(Vector3f wp) const {
                         w.z * (wp.x * w.x + wp.y * w.y) - wp.z * (Sqr(w.x) + Sqr(w.y)));
 }
 
+// Vector Frame Definition
+class Frame {
+  public:
+    // Frame Public Methods
+    Frame() : x(1, 0, 0), y(0, 1, 0), z(0, 0, 1) {}
+    
+    Frame(Vector3f x, Vector3f y, Vector3f z);
+
+    static Frame FromXZ(Vector3f x, Vector3f z) { return Frame(x, Cross(z, x), z); }
+    
+    static Frame FromXY(Vector3f x, Vector3f y) { return Frame(x, y, Cross(x, y)); }
+
+    
+    static Frame FromZ(Vector3f z) {
+        Vector3f x, y;
+        CoordinateSystem(z, &x, &y);
+        return Frame(x, y, z);
+    }
+
+    static Frame FromX(Vector3f x) {
+        Vector3f y, z;
+        CoordinateSystem(x, &y, &z);
+        return Frame(x, y, z);
+    }
+
+    static Frame FromY(Vector3f y) {
+        Vector3f x, z;
+        CoordinateSystem(y, &z, &x);
+        return Frame(x, y, z);
+    }
+
+    static Frame FromX(Normal3f x) {
+        Vector3f y, z;
+        CoordinateSystem(x, &y, &z);
+        return Frame(Vector3f(x), y, z);
+    }
+
+    static Frame FromY(Normal3f y) {
+        Vector3f x, z;
+        CoordinateSystem(y, &z, &x);
+        return Frame(x, Vector3f(y), z);
+    }
+
+    static Frame FromZ(Normal3f z) { return FromZ(Vector3f(z)); }
+
+    Vector3f ToLocal(Vector3f v) const {
+        return Vector3f(Dot(v, x), Dot(v, y), Dot(v, z));
+    }
+
+    Normal3f ToLocal(Normal3f n) const {
+        return Normal3f(Dot(n, x), Dot(n, y), Dot(n, z));
+    }
+
+    Vector3f FromLocal(Vector3f v) const { return v.x * x + v.y * y + v.z * z; }
+
+    Normal3f FromLocal(Normal3f n) const { return Normal3f(n.x * x + n.y * y + n.z * z); }
+
+    std::string ToString() const {
+        return std::format("[ Frame x: {0:s} y: {1:s} z: {2:s} ]", x.ToString(), y.ToString(), z.ToString());
+    }
+
+    // Frame Public Members
+    Vector3f x, y, z;
+};
+
+// Frame Inline Functions
+inline Frame::Frame(Vector3f x, Vector3f y, Vector3f z) : x(x), y(y), z(z) {
+    DCHECK(std::abs(LengthSquared(x) - 1) < 1e-4);
+    DCHECK(std::abs(LengthSquared(y) - 1)< 1e-4);
+    DCHECK(std::abs(LengthSquared(z) - 1)< 1e-4);
+    DCHECK(std::abs(Dot(x, y))< 1e-4);
+    DCHECK(std::abs(Dot(y, z))< 1e-4);
+    DCHECK(std::abs(Dot(z, x))< 1e-4);
+}
+
+
 
 
 
