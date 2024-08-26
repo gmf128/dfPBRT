@@ -7,6 +7,7 @@
 #include <dfpbrt/util/vecmath.h>
 #include <dfpbrt/util/float.h>
 #include <dfpbrt/util/math.h>
+#include <dfpbrt/ray.h>
 
 namespace dfpbrt{
 
@@ -54,6 +55,9 @@ class Transform{
     Vector3fi operator()(const Vector3fi &v) const;
     Point3fi operator()(const Point3fi &p) const;
 
+    Ray operator()(const Ray &r,  Float *tmax) const;
+    RayDifferential operator()(const RayDifferential &r,  Float *tmax) const;
+
     //ApplyInverse transformations
     //Apply transformations
     template<typename T>
@@ -62,6 +66,10 @@ class Transform{
     Point3<T> ApplyInverse(Point3<T> p) const;
     template<typename T>
     Normal3<T> ApplyInverse(Normal3<T> n) const;
+
+    inline Ray ApplyInverse(const Ray &r, Float *tMax = nullptr) const;
+    inline RayDifferential ApplyInverse(const RayDifferential &r,
+                                        Float *tMax = nullptr) const;
 
 
     bool HasScale(Float tolerance = 1e-3f) const {
@@ -259,6 +267,90 @@ inline Vector3fi Transform::operator()(const Vector3fi &v) const {
 
     return Vector3fi(Vector3f(xp, yp, zp), vOutError);
 }
+
+inline Ray Transform::operator()(const Ray &r, Float *tMax) const {
+    Point3fi o = (*this)(Point3fi(r.o));
+    Vector3f d = (*this)(r.d);
+    // Offset ray origin to edge of error bounds and compute _tMax_
+    if (Float lengthSquared = LengthSquared(d); lengthSquared > 0) {
+        Float dt = Dot(Abs(d), o.Error()) / lengthSquared;
+        o += d * dt;
+        if (tMax)
+            *tMax -= dt;
+    }
+
+    return Ray(Point3f(o), d, r.time, r.medium);
+}
+
+inline RayDifferential Transform::operator()(const RayDifferential &r,
+                                             Float *tMax) const {
+    Ray tr = (*this)(Ray(r), tMax);
+    RayDifferential ret(tr.o, tr.d, tr.time, tr.medium);
+    ret.hasDifferentials = r.hasDifferentials;
+    ret.rxOrigin = (*this)(r.rxOrigin);
+    ret.ryOrigin = (*this)(r.ryOrigin);
+    ret.rxDirection = (*this)(r.rxDirection);
+    ret.ryDirection = (*this)(r.ryDirection);
+    return ret;
+}
+
+template <typename T>
+inline Point3<T> Transform::ApplyInverse(Point3<T> p) const {
+    T x = p.x, y = p.y, z = p.z;
+    T xp = (mInv[0][0] * x + mInv[0][1] * y) + (mInv[0][2] * z + mInv[0][3]);
+    T yp = (mInv[1][0] * x + mInv[1][1] * y) + (mInv[1][2] * z + mInv[1][3]);
+    T zp = (mInv[2][0] * x + mInv[2][1] * y) + (mInv[2][2] * z + mInv[2][3]);
+    T wp = (mInv[3][0] * x + mInv[3][1] * y) + (mInv[3][2] * z + mInv[3][3]);
+    CHECK(wp != 0);
+    if (wp == 1)
+        return Point3<T>(xp, yp, zp);
+    else
+        return Point3<T>(xp, yp, zp) / wp;
+}
+
+template <typename T>
+inline Vector3<T> Transform::ApplyInverse(Vector3<T> v) const {
+    T x = v.x, y = v.y, z = v.z;
+    return Vector3<T>(mInv[0][0] * x + mInv[0][1] * y + mInv[0][2] * z,
+                      mInv[1][0] * x + mInv[1][1] * y + mInv[1][2] * z,
+                      mInv[2][0] * x + mInv[2][1] * y + mInv[2][2] * z);
+}
+
+template <typename T>
+inline Normal3<T> Transform::ApplyInverse(Normal3<T> n) const {
+    T x = n.x, y = n.y, z = n.z;
+    return Normal3<T>(m[0][0] * x + m[1][0] * y + m[2][0] * z,
+                      m[0][1] * x + m[1][1] * y + m[2][1] * z,
+                      m[0][2] * x + m[1][2] * y + m[2][2] * z);
+}
+
+inline Ray Transform::ApplyInverse(const Ray &r, Float *tMax) const {
+    Point3fi o = ApplyInverse(Point3fi(r.o));
+    Vector3f d = ApplyInverse(r.d);
+    // Offset ray origin to edge of error bounds and compute _tMax_
+    Float lengthSquared = LengthSquared(d);
+    if (lengthSquared > 0) {
+        Vector3f oError(o.x.Width() / 2, o.y.Width() / 2, o.z.Width() / 2);
+        Float dt = Dot(Abs(d), oError) / lengthSquared;
+        o += d * dt;
+        if (tMax)
+            *tMax -= dt;
+    }
+    return Ray(Point3f(o), d, r.time, r.medium);
+}
+
+inline RayDifferential Transform::ApplyInverse(const RayDifferential &r,
+                                               Float *tMax) const {
+    Ray tr = ApplyInverse(Ray(r), tMax);
+    RayDifferential ret(tr.o, tr.d, tr.time, tr.medium);
+    ret.hasDifferentials = r.hasDifferentials;
+    ret.rxOrigin = ApplyInverse(r.rxOrigin);
+    ret.ryOrigin = ApplyInverse(r.ryOrigin);
+    ret.rxDirection = ApplyInverse(r.rxDirection);
+    ret.ryDirection = ApplyInverse(r.ryDirection);
+    return ret;
+}
+
 
 
 }
