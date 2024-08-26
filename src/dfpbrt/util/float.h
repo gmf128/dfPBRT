@@ -194,6 +194,14 @@ inline double NextFloatDown(double v) {
     return BitsToFloat(ui);
 }
 
+inline int Exponent(float v) {
+    return (FloatToBits(v) >> 23) - 127;
+}
+
+inline int Significand(float v) {
+    return FloatToBits(v) & ((1 << 23) - 1);
+}
+
 }
 
 

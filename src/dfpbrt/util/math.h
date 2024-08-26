@@ -152,6 +152,7 @@ class Interval {
     Float low, high;
 };
 
+
 // CompensatedFloat Definition
 struct CompensatedFloat {
   public:
@@ -189,6 +190,53 @@ inline constexpr T Clamp(T val, U low, V high) {
         return val;
 }
 
+// Would be nice to allow Float to be a template type here, but it is tricky:
+// https://stackoverflow.com/questions/5101516/why-function-template-cannot-be-partially-specialized
+template <int n>
+inline constexpr float Pow(float v) {
+    if constexpr (n < 0)
+        return 1 / Pow<-n>(v);
+    float n2 = Pow<n / 2>(v);
+    return n2 * n2 * Pow<n & 1>(v);
+}
+
+template <>
+inline constexpr float Pow<1>(float v) {
+    return v;
+}
+template <>
+inline constexpr float Pow<0>(float v) {
+    return 1;
+}
+
+template <int n>
+inline constexpr double Pow(double v) {
+    if constexpr (n < 0)
+        return 1 / Pow<-n>(v);
+    double n2 = Pow<n / 2>(v);
+    return n2 * n2 * Pow<n & 1>(v);
+}
+
+template <>
+inline constexpr double Pow<1>(double v) {
+    return v;
+}
+
+template <>
+inline constexpr double Pow<0>(double v) {
+    return 1;
+}
+
+template <typename Float, typename C>
+inline constexpr Float EvaluatePolynomial(Float t, C c) {
+    return c;
+}
+
+template <typename Float, typename C, typename... Args>
+inline constexpr Float EvaluatePolynomial(Float t, C c, Args... cRemaining) {
+    return FMA(t, EvaluatePolynomial(t, cRemaining...), c);
+}
+
 inline Float SinXOverX(Float x) {
     if (1 - x * x == 1)
         return 1;
@@ -222,6 +270,90 @@ inline float SafeSqrt(float x){
 inline double SafeSqrt(double x){
     DCHECK(x >= -1e-3);
     return std::sqrt((std::max<double>)({0, x}));
+}
+
+inline Float Log2(Float x) {
+    const Float invLog2 = 1.442695040888963387004650940071;
+    return std::log(x) * invLog2;
+}
+
+inline int Log2Int(float v) {
+    DCHECK(v > 0);
+    if (v < 1)
+        return -Log2Int(1 / v);
+    // https://graphics.stanford.edu/~seander/bithacks.html#IntegerLog
+    // (With an additional check of the significant to get round-to-nearest
+    // rather than round down.)
+    // midsignif = Significand(std::pow(2., 1.5))
+    // i.e. grab the significand of a value halfway between two exponents,
+    // in log space.
+    const uint32_t midsignif = 0b00000000001101010000010011110011;
+    return Exponent(v) + ((Significand(v) >= midsignif) ? 1 : 0);
+}
+
+inline int Log2Int(double v) {
+    DCHECK(v > 0);
+    if (v < 1)
+        return -Log2Int(1 / v);
+    // https://graphics.stanford.edu/~seander/bithacks.html#IntegerLog
+    // (With an additional check of the significant to get round-to-nearest
+    // rather than round down.)
+    // midsignif = Significand(std::pow(2., 1.5))
+    // i.e. grab the significand of a value halfway between two exponents,
+    // in log space.
+    const uint64_t midsignif = 0b110101000001001111001100110011111110011101111001101;
+    return Exponent(v) + ((Significand(v) >= midsignif) ? 1 : 0);
+}
+
+inline int Log2Int(uint32_t v) {
+    unsigned long lz = 0;
+    if (_BitScanReverse(&lz, v))
+        return lz;
+    return 0;
+}
+
+inline int Log2Int(int32_t v) {
+    return Log2Int((uint32_t)v);
+}
+
+inline int Log2Int(uint64_t v) {
+    unsigned long lz = 0;
+    _BitScanReverse64(&lz, v);
+// _WIN64
+    return lz;
+}
+
+inline int Log2Int(int64_t v) {
+    return Log2Int((uint64_t)v);
+}
+
+template <typename T>
+inline int Log4Int(T v) {
+    return Log2Int(v) / 2;
+}
+
+// https://stackoverflow.com/a/10792321
+inline float FastExp(float x) {
+    // Compute $x'$ such that $\roman{e}^x = 2^{x'}$
+    float xp = x * 1.442695041f;
+
+    // Find integer and fractional components of $x'$
+    float fxp = std::floor(xp), f = xp - fxp;
+    int i = (int)fxp;
+
+    // Evaluate polynomial approximation of $2^f$
+    float twoToF = EvaluatePolynomial(f, 1.f, 0.695556856f, 0.226173572f, 0.0781455737f);
+
+    // Scale $2^f$ by $2^i$ and return final result
+    int exponent = Exponent(twoToF) + i;
+    if (exponent < -126)
+        return 0;
+    if (exponent > 127)
+        return Infinity_;
+    uint32_t bits = FloatToBits(twoToF);
+    bits &= 0b10000000011111111111111111111111u;
+    bits |= (exponent + 127) << 23;
+    return BitsToFloat(bits);
 }
 
 
@@ -343,6 +475,272 @@ inline bool Quadratic(double a, double b, double c, double *t0, double *t1) {
         std::swap(*t0, *t1);
     return true;
 }
+
+// Interval Inline Functions
+inline bool InRange(Float v, Interval i) {
+    return v >= i.LowerBound() && v <= i.UpperBound();
+}
+inline bool InRange(Interval a, Interval b) {
+    return a.LowerBound() <= b.UpperBound() && a.UpperBound() >= b.LowerBound();
+}
+
+inline Interval Interval::operator/(Interval i) const {
+    if (InRange(0, i))
+        // The interval we're dividing by straddles zero, so just
+        // return an interval of everything.
+        return Interval(-Infinity_, Infinity_);
+
+    Float lowQuot[4] = {DivRoundDown(low, i.low), DivRoundDown(high, i.low),
+                        DivRoundDown(low, i.high), DivRoundDown(high, i.high)};
+    Float highQuot[4] = {DivRoundUp(low, i.low), DivRoundUp(high, i.low),
+                         DivRoundUp(low, i.high), DivRoundUp(high, i.high)};
+    return {(std::min)({lowQuot[0], lowQuot[1], lowQuot[2], lowQuot[3]}),
+            (std::max)({highQuot[0], highQuot[1], highQuot[2], highQuot[3]})};
+}
+
+inline Interval Sqr(Interval i) {
+    Float alow = std::abs(i.LowerBound()), ahigh = std::abs(i.UpperBound());
+    if (alow > ahigh)
+        std::swap(alow, ahigh);
+    if (InRange(0, i))
+        return Interval(0, MulRoundUp(ahigh, ahigh));
+    return Interval(MulRoundDown(alow, alow), MulRoundUp(ahigh, ahigh));
+}
+
+inline Interval MulPow2(Float s, Interval i);
+inline Interval MulPow2(Interval i, Float s);
+
+inline Interval operator+(Float f, Interval i) {
+    return Interval(f) + i;
+}
+
+inline Interval operator-(Float f, Interval i) {
+    return Interval(f) - i;
+}
+
+inline Interval operator*(Float f, Interval i) {
+    if (f > 0)
+        return Interval(MulRoundDown(f, i.LowerBound()), MulRoundUp(f, i.UpperBound()));
+    else
+        return Interval(MulRoundDown(f, i.UpperBound()), MulRoundUp(f, i.LowerBound()));
+}
+inline Interval operator/(Float f, Interval i) {
+    if (InRange(0, i))
+        // The interval we're dividing by straddles zero, so just
+        // return an interval of everything.
+        return Interval(-Infinity_, Infinity_);
+
+    if (f > 0)
+        return Interval(DivRoundDown(f, i.UpperBound()), DivRoundUp(f, i.LowerBound()));
+    else
+        return Interval(DivRoundDown(f, i.LowerBound()), DivRoundUp(f, i.UpperBound()));
+}
+
+inline Interval operator+(Interval i, Float f) {
+    return i + Interval(f);
+}
+
+inline Interval operator-(Interval i, Float f) {
+    return i - Interval(f);
+}
+
+inline Interval operator*(Interval i, Float f) {
+    if (f > 0)
+        return Interval(MulRoundDown(f, i.LowerBound()), MulRoundUp(f, i.UpperBound()));
+    else
+        return Interval(MulRoundDown(f, i.UpperBound()), MulRoundUp(f, i.LowerBound()));
+}
+
+inline Interval operator/(Interval i, Float f) {
+    if (f == 0)
+        return Interval(-Infinity_, Infinity_);
+
+    if (f > 0)
+        return Interval(DivRoundDown(i.LowerBound(), f), DivRoundUp(i.UpperBound(), f));
+    else
+        return Interval(DivRoundDown(i.UpperBound(), f), DivRoundUp(i.LowerBound(), f));
+}
+
+inline Float Floor(Interval i) {
+    return std::floor(i.LowerBound());
+}
+
+inline Float Ceil(Interval i) {
+    return std::ceil(i.UpperBound());
+}
+
+inline Float floor(Interval i) {
+    return Floor(i);
+}
+
+inline Float ceil(Interval i) {
+    return Ceil(i);
+}
+
+inline Float Min(Interval a, Interval b) {
+    return (std::min)(a.LowerBound(), b.LowerBound());
+}
+
+inline Float Max(Interval a, Interval b) {
+    return (std::max)(a.UpperBound(), b.UpperBound());
+}
+
+
+inline Interval Sqrt(Interval i) {
+    return {SqrtRoundDown(i.LowerBound()), SqrtRoundUp(i.UpperBound())};
+}
+
+inline Interval sqrt(Interval i) {
+    return Sqrt(i);
+}
+
+inline Interval FMA(Interval a, Interval b, Interval c) {
+    Float low = (std::min)({FMARoundDown(a.LowerBound(), b.LowerBound(), c.LowerBound()),
+                          FMARoundDown(a.UpperBound(), b.LowerBound(), c.LowerBound()),
+                          FMARoundDown(a.LowerBound(), b.UpperBound(), c.LowerBound()),
+                          FMARoundDown(a.UpperBound(), b.UpperBound(), c.LowerBound())});
+    Float high = (std::max)({FMARoundUp(a.LowerBound(), b.LowerBound(), c.UpperBound()),
+                           FMARoundUp(a.UpperBound(), b.LowerBound(), c.UpperBound()),
+                           FMARoundUp(a.LowerBound(), b.UpperBound(), c.UpperBound()),
+                           FMARoundUp(a.UpperBound(), b.UpperBound(), c.UpperBound())});
+    return Interval(low, high);
+}
+
+inline Interval DifferenceOfProducts(Interval a, Interval b, Interval c,
+                                                  Interval d) {
+    Float ab[4] = {a.LowerBound() * b.LowerBound(), a.UpperBound() * b.LowerBound(),
+                   a.LowerBound() * b.UpperBound(), a.UpperBound() * b.UpperBound()};
+    Float abLow = (std::min)({ab[0], ab[1], ab[2], ab[3]});
+    Float abHigh = (std::max)({ab[0], ab[1], ab[2], ab[3]});
+    int abLowIndex = abLow == ab[0] ? 0 : (abLow == ab[1] ? 1 : (abLow == ab[2] ? 2 : 3));
+    int abHighIndex =
+        abHigh == ab[0] ? 0 : (abHigh == ab[1] ? 1 : (abHigh == ab[2] ? 2 : 3));
+
+    Float cd[4] = {c.LowerBound() * d.LowerBound(), c.UpperBound() * d.LowerBound(),
+                   c.LowerBound() * d.UpperBound(), c.UpperBound() * d.UpperBound()};
+    Float cdLow = (std::min)({cd[0], cd[1], cd[2], cd[3]});
+    Float cdHigh = (std::max)({cd[0], cd[1], cd[2], cd[3]});
+    int cdLowIndex = cdLow == cd[0] ? 0 : (cdLow == cd[1] ? 1 : (cdLow == cd[2] ? 2 : 3));
+    int cdHighIndex =
+        cdHigh == cd[0] ? 0 : (cdHigh == cd[1] ? 1 : (cdHigh == cd[2] ? 2 : 3));
+
+    // Invert cd Indices since it's subtracted...
+    Float low = DifferenceOfProducts(a[abLowIndex & 1], b[abLowIndex >> 1],
+                                     c[cdHighIndex & 1], d[cdHighIndex >> 1]);
+    Float high = DifferenceOfProducts(a[abHighIndex & 1], b[abHighIndex >> 1],
+                                      c[cdLowIndex & 1], d[cdLowIndex >> 1]);
+    DCHECK(low <= high);
+
+    return {NextFloatDown(NextFloatDown(low)), NextFloatUp(NextFloatUp(high))};
+}
+
+inline Interval SumOfProducts(Interval a, Interval b, Interval c,
+                                           Interval d) {
+    return DifferenceOfProducts(a, b, -c, d);
+}
+
+inline Interval MulPow2(Float s, Interval i) {
+    return MulPow2(i, s);
+}
+
+inline Interval MulPow2(Interval i, Float s) {
+    Float as = std::abs(s);
+    if (as < 1)
+        DCHECK(1 / as == 1ull << Log2Int(1 / as));
+    else
+        DCHECK(as == 1ull << Log2Int(as));
+
+    // Multiplication by powers of 2 is exaact
+    return Interval((std::min)(i.LowerBound() * s, i.UpperBound() * s),
+                    (std::max)(i.LowerBound() * s, i.UpperBound() * s));
+}
+
+inline Interval Abs(Interval i) {
+    if (i.LowerBound() >= 0)
+        // The entire interval is greater than zero, so we're all set.
+        return i;
+    else if (i.UpperBound() <= 0)
+        // The entire interval is less than zero.
+        return Interval(-i.UpperBound(), -i.LowerBound());
+    else
+        // The interval straddles zero.
+        return Interval(0, (std::max)(-i.LowerBound(), i.UpperBound()));
+}
+inline Interval abs(Interval i) {
+    return Abs(i);
+}
+
+inline Interval ACos(Interval i) {
+    Float low = std::acos(std::min<Float>(1, i.UpperBound()));
+    Float high = std::acos(std::max<Float>(-1, i.LowerBound()));
+
+    return Interval(std::max<Float>(0, NextFloatDown(low)), NextFloatUp(high));
+}
+
+inline Interval Sin(Interval i) {
+    CHECK(i.LowerBound()>= -1e-16);
+    CHECK(i.UpperBound()<= 2.0001 * Pi);
+    Float low = std::sin(std::max<Float>(0, i.LowerBound()));
+    Float high = std::sin(i.UpperBound());
+    if (low > high)
+        std::swap(low, high);
+    low = std::max<Float>(-1, NextFloatDown(low));
+    high = std::min<Float>(1, NextFloatUp(high));
+    if (InRange(Pi / 2, i))
+        high = 1;
+    if (InRange((3.f / 2.f) * Pi, i))
+        low = -1;
+
+    return Interval(low, high);
+}
+
+inline Interval Cos(Interval i) {
+    CHECK(i.LowerBound()>= -1e-16);
+    CHECK(i.UpperBound() <= 2.0001 * Pi);
+    Float low = std::cos(std::max<Float>(0, i.LowerBound()));
+    Float high = std::cos(i.UpperBound());
+    if (low > high)
+        std::swap(low, high);
+    low = std::max<Float>(-1, NextFloatDown(low));
+    high = std::min<Float>(1, NextFloatUp(high));
+    if (InRange(Pi, i))
+        low = -1;
+
+    return Interval(low, high);
+}
+
+inline bool Quadratic(Interval a, Interval b, Interval c, Interval *t0,
+                                   Interval *t1) {
+    // Find quadratic discriminant
+    Interval discrim = DifferenceOfProducts(b, b, MulPow2(4, a), c);
+    if (discrim.LowerBound() < 0)
+        return false;
+    Interval floatRootDiscrim = Sqrt(discrim);
+
+    // Compute quadratic _t_ values
+    Interval q;
+    if ((Float)b < 0)
+        q = MulPow2(-.5, b - floatRootDiscrim);
+    else
+        q = MulPow2(-.5, b + floatRootDiscrim);
+    *t0 = q / a;
+    *t1 = c / q;
+    if (t0->LowerBound() > t1->LowerBound())
+        std::swap(*t0, *t1);
+    return true;
+}
+
+inline Interval SumSquares(Interval i) {
+    return Sqr(i);
+}
+
+template <typename... Args>
+inline Interval SumSquares(Interval i, Args... args) {
+    Interval ss = FMA(i, i, SumSquares(args...));
+    return Interval(std::max<Float>(0, ss.LowerBound()), ss.UpperBound());
+}
+
+
 
 namespace {
 

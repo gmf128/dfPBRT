@@ -45,12 +45,14 @@ class Transform{
 
     //Apply transformations
     template<typename T>
-    Vector3<T> operator()(Vector3<T> v) const;
+    Vector3<T> operator()(const Vector3<T> &v) const;
     template<typename T>
-    Point3<T> operator()(Point3<T> p) const;
+    Point3<T> operator()(const Point3<T> &p) const;
     template<typename T>
-    Normal3<T> operator()(Normal3<T> n) const;
+    Normal3<T> operator()(const Normal3<T> &n) const;
 
+    Vector3fi operator()(const Vector3fi &v) const;
+    Point3fi operator()(const Point3fi &p) const;
 
     //ApplyInverse transformations
     //Apply transformations
@@ -60,6 +62,7 @@ class Transform{
     Point3<T> ApplyInverse(Point3<T> p) const;
     template<typename T>
     Normal3<T> ApplyInverse(Normal3<T> n) const;
+
 
     bool HasScale(Float tolerance = 1e-3f) const {
         Float la2 = LengthSquared((*this)(Vector3f(1, 0, 0)));
@@ -149,7 +152,7 @@ inline Transform RotateFromTo(Vector3f from, Vector3f to) {
 
 // Transform Inline Methods
 template <typename T>
-inline Point3<T> Transform::operator()(Point3<T> p) const {
+inline Point3<T> Transform::operator()(const Point3<T> &p) const {
     T xp = m[0][0] * p.x + m[0][1] * p.y + m[0][2] * p.z + m[0][3];
     T yp = m[1][0] * p.x + m[1][1] * p.y + m[1][2] * p.z + m[1][3];
     T zp = m[2][0] * p.x + m[2][1] * p.y + m[2][2] * p.z + m[2][3];
@@ -161,19 +164,102 @@ inline Point3<T> Transform::operator()(Point3<T> p) const {
 }
 
 template <typename T>
-inline Vector3<T> Transform::operator()(Vector3<T> v) const {
+inline Vector3<T> Transform::operator()(const Vector3<T> &v) const {
     return Vector3<T>(m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z,
                       m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z,
                       m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z);
 }
 
+//Important! Normals need to behave different from points and vectors. Transform(n) should be (M^-1)^T
 template <typename T>
-inline Normal3<T> Transform::operator()(Normal3<T> n) const {
+inline Normal3<T> Transform::operator()(const Normal3<T> &n) const {
     T x = n.x, y = n.y, z = n.z;
     return Normal3<T>(mInv[0][0] * x + mInv[1][0] * y + mInv[2][0] * z,
                       mInv[0][1] * x + mInv[1][1] * y + mInv[2][1] * z,
                       mInv[0][2] * x + mInv[1][2] * y + mInv[2][2] * z);
 }
+
+inline Point3fi Transform::operator()(const Point3fi &p) const {
+        Float x = Float(p.x), y = Float(p.y), z = Float(p.z);
+        // Compute transformed coordinates from point _(x, y, z)_
+        Float xp = (m[0][0] * x + m[0][1] * y) + (m[0][2] * z + m[0][3]);
+        Float yp = (m[1][0] * x + m[1][1] * y) + (m[1][2] * z + m[1][3]);
+        Float zp = (m[2][0] * x + m[2][1] * y) + (m[2][2] * z + m[2][3]);
+        Float wp = (m[3][0] * x + m[3][1] * y) + (m[3][2] * z + m[3][3]);
+
+        // Compute absolute error for transformed point, _pError_
+        Vector3f pError;
+        if (p.IsExact()) {
+            // Compute error for transformed exact _p_
+            pError.x = gamma(3) * (std::abs(m[0][0] * x) + std::abs(m[0][1] * y) +
+                                   std::abs(m[0][2] * z) + std::abs(m[0][3]));
+            pError.y = gamma(3) * (std::abs(m[1][0] * x) + std::abs(m[1][1] * y) +
+                                   std::abs(m[1][2] * z) + std::abs(m[1][3]));
+            pError.z = gamma(3) * (std::abs(m[2][0] * x) + std::abs(m[2][1] * y) +
+                                   std::abs(m[2][2] * z) + std::abs(m[2][3]));
+
+        } else {
+            // Compute error for transformed approximate _p_
+            Vector3f pInError = p.Error();
+            pError.x = (gamma(3) + 1) * (std::abs(m[0][0]) * pInError.x +
+                                         std::abs(m[0][1]) * pInError.y +
+                                         std::abs(m[0][2]) * pInError.z) +
+                       gamma(3) * (std::abs(m[0][0] * x) + std::abs(m[0][1] * y) +
+                                   std::abs(m[0][2] * z) + std::abs(m[0][3]));
+            pError.y = (gamma(3) + 1) * (std::abs(m[1][0]) * pInError.x +
+                                         std::abs(m[1][1]) * pInError.y +
+                                         std::abs(m[1][2]) * pInError.z) +
+                       gamma(3) * (std::abs(m[1][0] * x) + std::abs(m[1][1] * y) +
+                                   std::abs(m[1][2] * z) + std::abs(m[1][3]));
+            pError.z = (gamma(3) + 1) * (std::abs(m[2][0]) * pInError.x +
+                                         std::abs(m[2][1]) * pInError.y +
+                                         std::abs(m[2][2]) * pInError.z) +
+                       gamma(3) * (std::abs(m[2][0] * x) + std::abs(m[2][1] * y) +
+                                   std::abs(m[2][2] * z) + std::abs(m[2][3]));
+        }
+
+        if (wp == 1)
+            return Point3fi(Point3f(xp, yp, zp), pError);
+        else
+            return Point3fi(Point3f(xp, yp, zp), pError) / wp;
+    }
+
+inline Vector3fi Transform::operator()(const Vector3fi &v) const {
+    Float x = Float(v.x), y = Float(v.y), z = Float(v.z);
+    Vector3f vOutError;
+    if (v.IsExact()) {
+        vOutError.x = gamma(3) * (std::abs(m[0][0] * x) + std::abs(m[0][1] * y) +
+                                  std::abs(m[0][2] * z));
+        vOutError.y = gamma(3) * (std::abs(m[1][0] * x) + std::abs(m[1][1] * y) +
+                                  std::abs(m[1][2] * z));
+        vOutError.z = gamma(3) * (std::abs(m[2][0] * x) + std::abs(m[2][1] * y) +
+                                  std::abs(m[2][2] * z));
+    } else {
+        Vector3f vInError = v.Error();
+        vOutError.x = (gamma(3) + 1) * (std::abs(m[0][0]) * vInError.x +
+                                        std::abs(m[0][1]) * vInError.y +
+                                        std::abs(m[0][2]) * vInError.z) +
+                      gamma(3) * (std::abs(m[0][0] * x) + std::abs(m[0][1] * y) +
+                                  std::abs(m[0][2] * z));
+        vOutError.y = (gamma(3) + 1) * (std::abs(m[1][0]) * vInError.x +
+                                        std::abs(m[1][1]) * vInError.y +
+                                        std::abs(m[1][2]) * vInError.z) +
+                      gamma(3) * (std::abs(m[1][0] * x) + std::abs(m[1][1] * y) +
+                                  std::abs(m[1][2] * z));
+        vOutError.z = (gamma(3) + 1) * (std::abs(m[2][0]) * vInError.x +
+                                        std::abs(m[2][1]) * vInError.y +
+                                        std::abs(m[2][2]) * vInError.z) +
+                      gamma(3) * (std::abs(m[2][0] * x) + std::abs(m[2][1] * y) +
+                                  std::abs(m[2][2] * z));
+    }
+
+    Float xp = m[0][0] * x + m[0][1] * y + m[0][2] * z;
+    Float yp = m[1][0] * x + m[1][1] * y + m[1][2] * z;
+    Float zp = m[2][0] * x + m[2][1] * y + m[2][2] * z;
+
+    return Vector3fi(Vector3f(xp, yp, zp), vOutError);
+}
+
 
 }
 
