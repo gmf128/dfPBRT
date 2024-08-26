@@ -16,6 +16,14 @@ namespace dfpbrt{
     //using _ as alias in order not to cause same definitions errors
     #define Infinity_  std::numeric_limits<Float>::infinity() 
 
+    static constexpr double DoubleOneMinusEpsilon = 0x1.fffffffffffffp-1;
+    static constexpr float FloatOneMinusEpsilon = 0x1.fffffep-1;
+    #ifdef PBRT_FLOAT_AS_DOUBLE
+    static constexpr double OneMinusEpsilon = DoubleOneMinusEpsilon;
+    #else
+    static constexpr float OneMinusEpsilon = FloatOneMinusEpsilon;
+    #endif
+
 
     // Floating-point Inline Functions
     inline Float FMA(Float a, Float b, Float c){
