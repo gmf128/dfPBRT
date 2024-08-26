@@ -21,6 +21,9 @@ namespace dfpbrt {
 #define PCG32_DEFAULT_STREAM 0xda3e39cb94b95bdbULL
 #define PCG32_MULT 0x5851f42d4c957f2dULL
 
+static int32_t _numeric_max = (std::numeric_limits<int32_t>::max)();
+static int32_t _numeric_min = (std::numeric_limits<int32_t>::min)();
+
 // RNG Definition
 class RNG {
   public:
@@ -56,8 +59,7 @@ class RNG {
     // RNG Private Members
     uint64_t state, inc;
 };
-int32_t numeric_max = (std::numeric_limits<int32_t>::max)();
-int32_t numeric_min = (std::numeric_limits<int32_t>::min)();
+
 
 // RNG Inline Method Definitions
 template <typename T>
@@ -88,23 +90,23 @@ inline int32_t RNG::Uniform<int32_t>() {
     // https://stackoverflow.com/a/13208789
     uint32_t v = Uniform<uint32_t>();
 
-    if (v <= numeric_max)
+    if (v <= _numeric_max)
         return int32_t(v);
-    DCHECK(v>= numeric_min);
-    return int32_t(v - numeric_min) +
-           numeric_min;
+    DCHECK(v>= _numeric_min);
+    return int32_t(v - _numeric_min) +
+           _numeric_min;
 }
 
 template <>
 inline int64_t RNG::Uniform<int64_t>() {
     // https://stackoverflow.com/a/13208789
     uint64_t v = Uniform<uint64_t>();
-    if (v <= numeric_max)
+    if (v <= _numeric_max)
         // Safe to type convert directly.
         return int64_t(v);
-    DCHECK(v>= numeric_min);
-    return int64_t(v - numeric_min) +
-           numeric_min;
+    DCHECK(v>= _numeric_min);
+    return int64_t(v - _numeric_min) +
+           _numeric_min;
 }
 
 inline void RNG::SetSequence(uint64_t sequenceIndex, uint64_t seed) {

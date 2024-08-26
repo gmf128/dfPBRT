@@ -52,12 +52,12 @@ SET (DFPBRT_UTIL_SOURCE_HEADERS
 )
 
 SET (DFPBRT_TEST_SOURCES
+  src/dfpbrt/util/rng_test.cpp
   src/dfpbrt/util/vecmath_test.cpp
   src/dfpbrt/util/float_test.cpp
   src/dfpbrt/util/log_test.cpp
   src/dfpbrt/ray_test.cpp
   src/dfpbrt/util/transform_test.cpp
-  src/dfpbrt/util/rng_test.cpp
 )
 
 
