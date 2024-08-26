@@ -28,10 +28,12 @@ endif()
 SET(DFPBRT_SOURCE
   src/dfpbrt/dfpbrt.cpp
   src/dfpbrt/ray.cpp
+  src/dfpbrt/interaction.cpp
 )
 SET(DFPBRT_SOURCE_HEADERS
   src/dfpbrt/dfpbrt.h
   src/dfpbrt/ray.h
+  src/dfpbrt/interaction.h
 )
 SET (DFPBRT_UTIL_SOURCE
   src/dfpbrt/util/vecmath.cpp
@@ -58,6 +60,7 @@ SET (DFPBRT_TEST_SOURCES
   src/dfpbrt/util/log_test.cpp
   src/dfpbrt/ray_test.cpp
   src/dfpbrt/util/transform_test.cpp
+  src/dfpbrt/interaction_test.cpp
 )
 
 
