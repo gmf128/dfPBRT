@@ -57,6 +57,7 @@ class Transform{
 
     Ray operator()(const Ray &r,  Float *tmax) const;
     RayDifferential operator()(const RayDifferential &r,  Float *tmax) const;
+    Bounds3f operator()(const Bounds3f &b) const;
 
     //ApplyInverse transformations
     //Apply transformations
@@ -292,6 +293,15 @@ inline RayDifferential Transform::operator()(const RayDifferential &r,
     ret.rxDirection = (*this)(r.rxDirection);
     ret.ryDirection = (*this)(r.ryDirection);
     return ret;
+}
+//bbox
+inline Bounds3f Transform::operator()(const Bounds3f &b) const{
+    //TODO: better impl
+    Bounds3f bt;
+    for (int i = 0; i < 8; ++i)
+        bt = Union(bt, (*this)(b.Corner(i)));
+    return bt;
+
 }
 
 template <typename T>
