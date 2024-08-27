@@ -42,6 +42,7 @@ SET (DFPBRT_UTIL_SOURCE
   src/dfpbrt/util/transform.cpp
   src/dfpbrt/util/math.cpp
   src/dfpbrt/util/rng.cpp
+  src/dfpbrt/util/spectrum.cpp
 )
 
 SET (DFPBRT_UTIL_SOURCE_HEADERS
@@ -51,6 +52,8 @@ SET (DFPBRT_UTIL_SOURCE_HEADERS
   src/dfpbrt/util/check.h
   src/dfpbrt/util/transform.h
   src/dfpbrt/util/rng.h
+  src/dfpbrt/util/spectrum.h
+  src/dfpbrt/util/taggedptr.h
 )
 
 SET (DFPBRT_TEST_SOURCES
@@ -61,6 +64,8 @@ SET (DFPBRT_TEST_SOURCES
   src/dfpbrt/ray_test.cpp
   src/dfpbrt/util/transform_test.cpp
   src/dfpbrt/interaction_test.cpp
+  src/dfpbrt/util/spectrum_test.cpp
+  src/dfpbrt/util/taggedptr_test.cpp
 )
 
 
