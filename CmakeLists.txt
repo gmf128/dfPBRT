@@ -54,6 +54,7 @@ SET (DFPBRT_UTIL_SOURCE_HEADERS
   src/dfpbrt/util/rng.h
   src/dfpbrt/util/spectrum.h
   src/dfpbrt/util/taggedptr.h
+  src/dfpbrt/util/containers.h
 )
 
 SET (DFPBRT_TEST_SOURCES

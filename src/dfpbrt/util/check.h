@@ -28,7 +28,6 @@ namespace dfpbrt{
                       va, #b, vb);                                                     \
     } while (false) /* swallow semicolon */
 
-#endif 
 
   #define DCHECK(x) (CHECK(x))
   #define DCHECK_EQ(a, b) CHECK_EQ(a, b)
