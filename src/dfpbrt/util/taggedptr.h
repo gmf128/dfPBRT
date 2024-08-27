@@ -727,7 +727,7 @@ struct ReturnTypeConst {
 }  // namespace detail
 
 
-// TaggedPointer Definition
+// TaggedPointer Definition https://pbr-book.org/4ed/Utilities/Containers_and_Memory_Management#sec:tagged-pointer
 template <typename... Ts>
 class TaggedPointer {
   public:
