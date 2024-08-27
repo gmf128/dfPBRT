@@ -24,8 +24,8 @@ namespace dfpbrt{
         auto va = a;                                                                   \
         auto vb = b;                                                                   \
         if (!(va op vb))                                                               \
-            LOG_FATAL("Check failed: %s " #op " %s with %s = %s, %s = %s", #a, #b, #a, \
-                      va, #b, vb);                                                     \
+            LOG_FATAL(std::format("Check failed: {:s} " #op " {:s} with {:s} = {:s}, {:s} = {:s}", #a, #b, #a, \
+                      va, #b, vb));                                                     \
     } while (false) /* swallow semicolon */
 
 

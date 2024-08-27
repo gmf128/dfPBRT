@@ -2,6 +2,7 @@
 #define DFPBRT_UTIL_TAGGEDPTR_H
 
 #include <dfpbrt/util/check.h>
+#include <dfpbrt/util/containers.h>
 
 namespace dfpbrt{
 
