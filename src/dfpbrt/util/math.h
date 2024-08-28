@@ -476,6 +476,25 @@ inline bool Quadratic(double a, double b, double c, double *t0, double *t1) {
     return true;
 }
 
+// Math Inline Functions
+DFPBRT_CPU_GPU inline Float Lerp(Float x, Float a, Float b) {
+    return (1 - x) * a + x * b;
+}
+
+template <typename Predicate>
+DFPBRT_CPU_GPU inline size_t FindInterval(size_t sz, const Predicate &pred) {
+    using ssize_t = std::make_signed_t<size_t>;
+    ssize_t size = (ssize_t)sz - 2, first = 1;
+    while (size > 0) {
+        // Evaluate predicate at midpoint and update _first_ and _size_
+        size_t half = (size_t)size >> 1, middle = first + half;
+        bool predResult = pred(middle);
+        first = predResult ? middle + 1 : first;
+        size = predResult ? size - (half + 1) : half;
+    }
+    return (size_t)Clamp((ssize_t)first - 1, 0, sz - 2);
+}
+
 // Interval Inline Functions
 inline bool InRange(Float v, Interval i) {
     return v >= i.LowerBound() && v <= i.UpperBound();
