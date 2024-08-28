@@ -355,6 +355,37 @@ class RGBSigmoidPolynomial {
     Float c0, c1, c2;
 };
 
+// RGBToSpectrumTable Definition
+class RGBToSpectrumTable {
+  public:
+    // RGBToSpectrumTable Public Constants
+    static constexpr int res = 64;
+
+    using CoefficientArray = float[3][res][res][res][3];
+
+    // RGBToSpectrumTable Public Methods
+    RGBToSpectrumTable(const float *zNodes, const CoefficientArray *coeffs)
+        : zNodes(zNodes), coeffs(coeffs) {}
+
+    DFPBRT_CPU_GPU
+    RGBSigmoidPolynomial operator()(RGB rgb) const;
+
+    static void Init(Allocator alloc);
+
+    static const RGBToSpectrumTable *sRGB;
+    static const RGBToSpectrumTable *DCI_P3;
+    static const RGBToSpectrumTable *Rec2020;
+    static const RGBToSpectrumTable *ACES2065_1;
+
+    std::string ToString() const;
+
+  private:
+    // RGBToSpectrumTable Private Members
+    const float *zNodes;
+    const CoefficientArray *coeffs;
+};
+
+
 
 
 

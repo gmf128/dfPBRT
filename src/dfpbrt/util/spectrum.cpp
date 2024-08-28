@@ -2510,11 +2510,15 @@ std::map<std::string, Spectrum> namedSpectra;
 
 void Init(Allocator alloc) {
     PiecewiseLinearSpectrum xpls(CIE_lambda, CIE_X);
+    //Here Spectral::X() is initiated as CIE_X
+    //CIE_X IS THE X color coefficients for the wavelengths of light in the visible range.
     x = alloc.new_object<DenselySampledSpectrum>(&xpls, alloc);
-
+    //Here Spectral::Y() is initiated as CIE_X
+    //CIE_Y IS THE Y color coefficients for the wavelengths of light in the visible range.
     PiecewiseLinearSpectrum ypls(CIE_lambda, CIE_Y);
     y = alloc.new_object<DenselySampledSpectrum>(&ypls, alloc);
-
+    //Here Spectral::Z() is initiated as CIE_X
+    //CIE_Z IS THE Z color coefficients for the wavelengths of light in the visible range.
     PiecewiseLinearSpectrum zpls(CIE_lambda, CIE_Z);
     z = alloc.new_object<DenselySampledSpectrum>(&zpls, alloc);
 

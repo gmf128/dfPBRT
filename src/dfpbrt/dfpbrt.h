@@ -16,9 +16,17 @@
 #define NOMINMAX
 #include <Windows.h>
 
-
+// From ABSL_ARRAYSIZE
+#define DFPBRT_ARRAYSIZE(array) (sizeof(::dfpbrt::detail::ArraySizeHelper(array)))
 
 namespace dfpbrt{
+
+namespace detail {
+
+template <typename T, uint64_t N>
+auto ArraySizeHelper(const T (&array)[N]) -> char (&)[N];
+
+}  // namespace detail
 
 #if defined(DFPBRT_BUILD_GPU_RENDERER) && defined(__CUDACC__)
 #ifndef DFPBRT_NOINLINE

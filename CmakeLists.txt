@@ -44,6 +44,7 @@ SET (DFPBRT_UTIL_SOURCE
   src/dfpbrt/util/rng.cpp
   src/dfpbrt/util/spectrum.cpp
   src/dfpbrt/util/color.cpp
+  src/dfpbrt/util/colorspace.cpp
 )
 
 SET (DFPBRT_UTIL_SOURCE_HEADERS
@@ -58,6 +59,8 @@ SET (DFPBRT_UTIL_SOURCE_HEADERS
   src/dfpbrt/util/containers.h
   src/dfpbrt/util/color.h
   src/dfpbrt/util/file.h
+  src/dfpbrt/util/colorspace.h
+  src/dfpbrt/util/sampling.h
 )
 
 SET (DFPBRT_TEST_SOURCES
