@@ -756,7 +756,7 @@ class TaggedPointer {
     }
 
     template <typename T>
-    DFPBRT_CPU_GPU static constexpr unsigned int TypeIndex() {
+    DFPBRT_CPU_GPU static constexpr uint64_t TypeIndex() {
         using Tp = typename std::remove_cv_t<T>;
         if constexpr (std::is_same_v<Tp, std::nullptr_t>)
             return 0;

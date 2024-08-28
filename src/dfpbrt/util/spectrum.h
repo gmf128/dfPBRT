@@ -2,18 +2,20 @@
 #define DFPBRT_UTIL_SPECTRUM_H
 
 #include <dfpbrt/dfpbrt.h>
+#include <dfpbrt/util/math.h>
 #include <dfpbrt/util/vecmath.h>
-
+#include <dfpbrt/util/sampling.h>
 #include <dfpbrt/util/taggedptr.h>
-#include <dfpbrt/util/>
+#include <dfpbrt/util/color.h>
 
 
 namespace dfpbrt{
-
 // The range of visible range
 constexpr Float Lambda_min = 360, Lambda_max = 830;
 
 static constexpr int NSpectrumSamples = 4;
+
+static constexpr Float CIE_Y_integral = 106.856895;
 
 // Spectrum Definition
 // all possible spectrum types, they are all derived class of the base class Spectrum
@@ -27,7 +29,7 @@ class RGBIlluminantSpectrum;
 
 
 // The spectrum class is only an interface, i.e. the functions must be implemented by all of child classes.
-class Spectrum: TaggedPointer<BlackbodySpectrum, ConstantSpectrum, PiecewiseLinearSpectrum,
+class Spectrum: public TaggedPointer <BlackbodySpectrum, ConstantSpectrum, PiecewiseLinearSpectrum,
                                 DenselySampledSpectrum, RGBAlbedoSpectrum, RGBUnboundedSpectrum, 
                                 RGBIlluminantSpectrum>{
 public:
@@ -45,7 +47,7 @@ public:
     DFPBRT_CPU_GPU
     SampledSpectrum Sample(const SampledWavelengths &lambda) const;
 
-}
+};
 
 // Spectrum Function Declarations
 
@@ -287,12 +289,12 @@ class SampledWavelengths {
         return swl;
     }
 
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     Float operator[](int i) const { return lambda[i]; }
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     Float &operator[](int i) { return lambda[i]; }
     // It is not surprising to use SampledSpectrum to store pdf
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     SampledSpectrum PDF() const { return SampledSpectrum(pdf); }
 
     /**
@@ -300,7 +302,7 @@ class SampledWavelengths {
      * The most common example is when light undergoes dispersion and different wavelengths of light refract to different directions. When this happens, it is no longer possible to track multiple wavelengths of light with a single ray. 
      * For this case, SampledWavelengths provides the capability of terminating all but one of the wavelengths; subsequent computations can then consider the single surviving wavelength exclusively.
      */
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     void TerminateSecondary() {
         if (SecondaryTerminated())
             return;
@@ -321,7 +323,7 @@ class SampledWavelengths {
         pdf[0] /= NSpectrumSamples;
     }
 
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     bool SecondaryTerminated() const {
         for (int i = 1; i < NSpectrumSamples; ++i)
             if (pdf[i] != 0)
@@ -329,7 +331,7 @@ class SampledWavelengths {
         return true;
     }
 
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     static SampledWavelengths SampleVisible(Float u) {
         //Here u is also a random variable range[0, 1]
         SampledWavelengths swl;
@@ -383,7 +385,7 @@ class DenselySampledSpectrum {
         : lambda_min(lambda_min),
           lambda_max(lambda_max),
           //values initialization: values(length, allocator)
-          values(lambda_max - lambda_min + 1, alloc) {}
+          values((size_t)(lambda_max - lambda_min + 1), alloc) {}
     DenselySampledSpectrum(Spectrum s, Allocator alloc)
         : DenselySampledSpectrum(s, Lambda_min, Lambda_max, alloc) {}
     DenselySampledSpectrum(const DenselySampledSpectrum &s, Allocator alloc)
@@ -464,7 +466,7 @@ class DenselySampledSpectrum {
     friend struct std::hash<dfpbrt::DenselySampledSpectrum>;
     // DenselySampledSpectrum Private Members
     int lambda_min, lambda_max;
-    std::vector<Float> values;
+    std::vector<Float, Allocator> values;
 };
 
 class PiecewiseLinearSpectrum {
@@ -493,17 +495,17 @@ class PiecewiseLinearSpectrum {
 
     std::string ToString() const;
 
-    PiecewiseLinearSpectrum(pstd::span<const Float> lambdas,
-                            pstd::span<const Float> values, Allocator alloc = {});
+    PiecewiseLinearSpectrum(std::span<const Float> lambdas,
+                            std::span<const Float> values, Allocator alloc = {});
 
-    static pstd::optional<Spectrum> Read(const std::string &filename, Allocator alloc);
+    static std::optional<Spectrum> Read(const std::string &filename, Allocator alloc);
 
-    static PiecewiseLinearSpectrum *FromInterleaved(pstd::span<const Float> samples,
+    static PiecewiseLinearSpectrum *FromInterleaved(std::span<const Float> samples,
                                                     bool normalize, Allocator alloc);
 
   private:
     // PiecewiseLinearSpectrum Private Members
-    pstd::vector<Float> lambdas, values;
+    std::vector<Float, Allocator> lambdas, values;
 };
 
 class BlackbodySpectrum {
@@ -651,7 +653,7 @@ template <typename U, typename V>
 DFPBRT_CPU_GPU inline SampledSpectrum Clamp(const SampledSpectrum &s, U low, V high) {
     SampledSpectrum ret;
     for (int i = 0; i < NSpectrumSamples; ++i)
-        ret[i] = pbrt::Clamp(s[i], low, high);
+        ret[i] = dfpbrt::Clamp(s[i], low, high);
     DCHECK(!ret.HasNaNs());
     return ret;
 }
@@ -711,8 +713,8 @@ inline SampledSpectrum FastExp(const SampledSpectrum &s) {
 }
 
 DFPBRT_CPU_GPU
-inline SampledSpectrum Bilerp(pstd::array<Float, 2> p,
-                              pstd::span<const SampledSpectrum> v) {
+inline SampledSpectrum Bilerp(std::array<Float, 2> p,
+                              std::span<const SampledSpectrum> v) {
     return ((1 - p[0]) * (1 - p[1]) * v[0] + p[0] * (1 - p[1]) * v[1] +
             (1 - p[0]) * p[1] * v[2] + p[0] * p[1] * v[3]);
 }
@@ -723,6 +725,81 @@ inline SampledSpectrum Lerp(Float t, const SampledSpectrum &s1,
     return (1 - t) * s1 + t * s2;
 }
 
+// Spectral Data Declarations
+namespace Spectra {
+
+void Init(Allocator alloc);
+
+DFPBRT_CPU_GPU
+inline const DenselySampledSpectrum &X() {
+#ifdef DFPBRT_IS_GPU_CODE
+    extern DFPBRT_GPU DenselySampledSpectrum *xGPU;
+    return *xGPU;
+#else
+    extern DenselySampledSpectrum *x;
+    return *x;
+#endif
+}
+
+DFPBRT_CPU_GPU
+inline const DenselySampledSpectrum &Y() {
+#ifdef DFPBRT_IS_GPU_CODE
+    extern DFPBRT_GPU DenselySampledSpectrum *yGPU;
+    return *yGPU;
+#else
+    extern DenselySampledSpectrum *y;
+    return *y;
+#endif
+}
+
+DFPBRT_CPU_GPU
+inline const DenselySampledSpectrum &Z() {
+#ifdef DFPBRT_IS_GPU_CODE
+    extern DFPBRT_GPU DenselySampledSpectrum *zGPU;
+    return *zGPU;
+#else
+    extern DenselySampledSpectrum *z;
+    return *z;
+#endif
+}
+
+}  // namespace Spectra
+
+// Spectral Function Declarations
+Spectrum GetNamedSpectrum(std::string name);
+
+std::string FindMatchingNamedSpectrum(Spectrum s);
+
+namespace Spectra {
+inline const DenselySampledSpectrum &X();
+inline const DenselySampledSpectrum &Y();
+inline const DenselySampledSpectrum &Z();
+}  // namespace Spectra
+
+// Spectrum Inline Functions
+inline Float InnerProduct(Spectrum f, Spectrum g) {
+    Float integral = 0;
+    for (Float lambda = Lambda_min; lambda <= Lambda_max; ++lambda)
+        integral += f(lambda) * g(lambda);
+    return integral;
+}
+
+// Spectrum Inline Method Definitions
+inline Float Spectrum::operator()(Float lambda) const {
+    auto op = [&](auto ptr) { return (*ptr)(lambda); };
+    return Dispatch(op);
+}
+
+inline SampledSpectrum Spectrum::Sample(const SampledWavelengths &lambda) const {
+    auto samp = [&](auto ptr) { return ptr->Sample(lambda); };
+    return Dispatch(samp);
+}
+
+inline Float Spectrum::MaxValue() const {
+    auto max = [&](auto ptr) { return ptr->MaxValue(); };
+    return Dispatch(max);
+
+}
 
 }
 

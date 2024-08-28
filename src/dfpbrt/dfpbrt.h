@@ -12,8 +12,9 @@
 
 //Platform specific
 //todo: using macro to check the platform
+//Shit
+#define NOMINMAX
 #include <Windows.h>
-
 
 
 
@@ -117,12 +118,14 @@ struct SOA;
 class ScratchBuffer;
 
 // Define _Allocator_
-// TODO: substitude std pmr
-using Allocator = std::pmr::polymorphic_allocator<std::byte>;
+// TODO: substitude std pmr and Float -> std::bite
+using Allocator = std::pmr::polymorphic_allocator<Float>;
 
 // Initialization and Cleanup Function Declarations
 void InitPBRT(const PBRTOptions &opt);
 void CleanupPBRT();
+
+
 }
 
 #endif
