@@ -24,6 +24,22 @@ if(WIN32)
   list(APPEND DFPBRT_DEFINITIONS "PLATFORM_WINDOWS")
 endif()
 
+
+if (MSVC)
+    #if you want to ignore all the warnings
+    add_compile_options(/w)
+    #imcremental build
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /INCREMENTAL")
+    #using ccache to accelerate building
+    set(CMAKE_C_COMPILER_LAUNCHER ccache)
+    set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
+    #using more threads to accelerate building
+    set(CMAKE_BUILD_PARALLEL_LEVEL 8)
+endif()
+
+
+
+
 # check_ext ("utf8proc" "utf8proc/bench" 2484e2ed5e1d9c19edcccf392a7d9920ad90dfaf)
 
 #######################################
@@ -92,6 +108,11 @@ SET (DFPBRT_TEST_SOURCES
 
 
 add_library(DFPBRT_LIB_STATIC
+#todo: automately generate these files using rgb2spec
+${CMAKE_CURRENT_BINARY_DIR}/rgbspectrum_srgb.cpp
+${CMAKE_CURRENT_BINARY_DIR}/rgbspectrum_dci_p3.cpp
+${CMAKE_CURRENT_BINARY_DIR}/rgbspectrum_rec2020.cpp
+${CMAKE_CURRENT_BINARY_DIR}/rgbspectrum_aces.cpp
 ${DFPBRT_SOURCE}
 ${DFPBRT_SOURCE_HEADERS}
 ${DFPBRT_UTIL_SOURCE}

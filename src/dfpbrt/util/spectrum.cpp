@@ -169,6 +169,20 @@ std::string SampledWavelengths::ToString() const {
     return r;
 }
 
+std::string RGBAlbedoSpectrum::ToString() const {
+    return std::format("[ RGBAlbedoSpectrum rsp: {} ]", rsp.ToString());
+}
+
+std::string RGBUnboundedSpectrum::ToString() const {
+    return std::format("[ RGBUnboundedSpectrum rsp: {} ]", rsp.ToString());
+}
+
+std::string RGBIlluminantSpectrum::ToString() const {
+    return std::format("[ RGBIlluminantSpectrum: rsp: {} scale: {} illuminant: {} ]",
+                        rsp.ToString(), scale,
+                        illuminant ? illuminant->ToString() : std::string("(nullptr)"));
+}
+
 XYZ SampledSpectrum::ToXYZ(const SampledWavelengths &lambda) const {
     // Sample the $X$, $Y$, and $Z$ matching curves at _lambda_
     SampledSpectrum X = Spectra::X().Sample(lambda);

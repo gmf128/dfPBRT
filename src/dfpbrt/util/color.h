@@ -8,6 +8,7 @@
 #include <dfpbrt/util/taggedptr.h>
 #include <dfpbrt/util/vecmath.h>
 
+
 // A special present from windgi.h on Windows...
 #ifdef RGB
 #undef RGB
