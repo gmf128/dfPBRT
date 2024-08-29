@@ -143,7 +143,7 @@ std::vector<double> SplitStringToDoubles(std::string_view str, char ch) {
     return doubles;
 }
 
-#ifdef PBRT_IS_WINDOWS
+#ifdef DFPBRT_IS_WINDOWS
 std::wstring WStringFromU16String(std::u16string str) {
     std::wstring ws;
     ws.reserve(str.size());
@@ -169,6 +169,19 @@ std::string UTF8FromWString(std::wstring str) {
 }
 
 #endif  // PBRT_IS_WINDOWS
+
+std::wstring WStringFromU16String(std::u16string str) {
+    std::wstring ws;
+    ws.reserve(str.size());
+    for (char16_t c : str)
+        ws.push_back(c);
+    return ws;
+}
+
+std::wstring WStringFromUTF8(std::string str) {
+    return WStringFromU16String(UTF16FromUTF8(str));
+}
+
 
 // https://stackoverflow.com/a/52703954
 std::string UTF8FromUTF16(std::u16string str) {
