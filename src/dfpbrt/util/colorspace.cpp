@@ -6,6 +6,7 @@ namespace dfpbrt{
     RGBColorSpace::RGBColorSpace(Point2f r, Point2f g, Point2f b, Spectrum illuminant,
                   const RGBToSpectrumTable *rgbToSpectrumTable, Allocator alloc):
                   r(r), g(g), b(b), illuminant(illuminant, alloc), rgbToSpectrumTable(rgbToSpectrumTable){
+        #if 0
             // Define an RGB color space using the chromaticities of r g b w(white point) in xyY space
             // w is the xyY coord of spectrum illuminant, first we will get its XYZ coords
             XYZ W = SpectrumToXYZ(illuminant);
@@ -29,6 +30,17 @@ namespace dfpbrt{
 
             RGBFromXYZ = SquareMatrix<3>(R.X, R.Y, R.Z, G.X, G.Y, G.Z, B.X, B.Y, B.Z);
             XYZFromRGB = InvertOrExit(RGBFromXYZ);
+        #endif
+            // Compute whitepoint primaries and XYZ coordinates
+            XYZ W = SpectrumToXYZ(illuminant);
+            w = W.xy();
+            XYZ R = XYZ::FromxyY(r), G = XYZ::FromxyY(g), B = XYZ::FromxyY(b);
+
+            // Initialize XYZ color space conversion matrices
+            SquareMatrix<3> rgb(R.X, G.X, B.X, R.Y, G.Y, B.Y, R.Z, G.Z, B.Z);
+            XYZ C = InvertOrExit(rgb) * W;
+            XYZFromRGB = rgb * SquareMatrix<3>::Diag(C[0], C[1], C[2]);
+            RGBFromXYZ = InvertOrExit(XYZFromRGB);
         }
 
     SquareMatrix<3> ConvertRGBColorSpace(const RGBColorSpace &from, const RGBColorSpace &to) {
