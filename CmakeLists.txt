@@ -24,6 +24,17 @@ if(WIN32)
   list(APPEND DFPBRT_DEFINITIONS "PLATFORM_WINDOWS")
 endif()
 
+# check_ext ("utf8proc" "utf8proc/bench" 2484e2ed5e1d9c19edcccf392a7d9920ad90dfaf)
+
+#######################################
+## ext
+
+set (BUILD_SHARED_LIBS OFF)
+
+add_subdirectory (${CMAKE_CURRENT_SOURCE_DIR}/src/ext)
+
+########################################
+
 # 添加源文件和头文件
 SET(DFPBRT_SOURCE
   src/dfpbrt/dfpbrt.cpp
@@ -45,6 +56,8 @@ SET (DFPBRT_UTIL_SOURCE
   src/dfpbrt/util/spectrum.cpp
   src/dfpbrt/util/color.cpp
   src/dfpbrt/util/colorspace.cpp
+  src/dfpbrt/util/file.cpp
+  src/dfpbrt/util/string.cpp
 )
 
 SET (DFPBRT_UTIL_SOURCE_HEADERS
@@ -59,6 +72,7 @@ SET (DFPBRT_UTIL_SOURCE_HEADERS
   src/dfpbrt/util/containers.h
   src/dfpbrt/util/color.h
   src/dfpbrt/util/file.h
+  src/dfpbrt/util/string.h
   src/dfpbrt/util/colorspace.h
   src/dfpbrt/util/sampling.h
 )
@@ -71,8 +85,9 @@ SET (DFPBRT_TEST_SOURCES
   src/dfpbrt/ray_test.cpp
   src/dfpbrt/util/transform_test.cpp
   src/dfpbrt/interaction_test.cpp
-  src/dfpbrt/util/spectrum_test.cpp
+# src/dfpbrt/util/spectrum_test.cpp //unfinished
   src/dfpbrt/util/taggedptr_test.cpp
+  src/dfpbrt/util/color_test.cpp
 )
 
 
@@ -87,6 +102,8 @@ src/ext/gtest/gtest-all.cc
 
 set(ALL_LIB
 DFPBRT_LIB_STATIC
+
+utf8proc
 )
 
 if(WIN32)

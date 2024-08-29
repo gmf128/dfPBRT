@@ -25,6 +25,15 @@
 // #endif
 
 namespace dfpbrt{
+FILE *FOpenRead(std::string filename) {
+#ifdef DFPBRT_IS_WINDOWS
+    return _wfopen(WStringFromUTF8(filename).c_str(), L"rb");
+#else
+    return fopen(filename.c_str(), "rb");
+#endif
+return _wfopen(WStringFromUTF8(filename).c_str(), L"rb");
+}
+
 std::vector<Float> ReadFloatFile(std::string filename) {
     FILE *f = FOpenRead(filename);
     if (f == nullptr) {

@@ -182,6 +182,7 @@ XYZ SampledSpectrum::ToXYZ(const SampledWavelengths &lambda) const {
            CIE_Y_integral;
 }
 
+// For the case that only need y to know the luminance
 Float SampledSpectrum::y(const SampledWavelengths &lambda) const {
     SampledSpectrum Ys = Spectra::Y().Sample(lambda);
     SampledSpectrum pdf = lambda.PDF();
