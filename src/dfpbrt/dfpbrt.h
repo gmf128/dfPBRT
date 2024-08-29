@@ -130,7 +130,7 @@ class ScratchBuffer;
 using Allocator = std::pmr::polymorphic_allocator<Float>;
 
 // Initialization and Cleanup Function Declarations
-void InitPBRT(const PBRTOptions &opt);
+void InitDFPBRT();
 void CleanupPBRT();
 
 
