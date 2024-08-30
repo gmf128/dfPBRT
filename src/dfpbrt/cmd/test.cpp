@@ -7,7 +7,9 @@
 int main(int argc, char ** argv){
     testing::InitGoogleTest(&argc, argv);
     //Init()
-    dfpbrt::InitDFPBRT();
+    // Now, we will set all the options as default value
+    DFPBRTOptions opt = new DFPBRTOptions();
+    dfpbrt::InitDFPBRT(opt);
 
     return RUN_ALL_TESTS();
 }

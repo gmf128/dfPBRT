@@ -124,13 +124,13 @@ class Array2D;
 template <typename T>
 struct SOA;
 class ScratchBuffer;
-
+class DFPBRTOptions;
 // Define _Allocator_
 // TODO: substitude std pmr and Float -> std::bite
 using Allocator = std::pmr::polymorphic_allocator<Float>;
 
 // Initialization and Cleanup Function Declarations
-void InitDFPBRT();
+void InitDFPBRT(const DFPBRTOptions &);
 void CleanupPBRT();
 
 
