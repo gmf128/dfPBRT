@@ -6,6 +6,7 @@ namespace dfpbrt{
     RGBColorSpace::RGBColorSpace(Point2f r, Point2f g, Point2f b, Spectrum illuminant,
                   const RGBToSpectrumTable *rgbToSpectrumTable, Allocator alloc):
                   r(r), g(g), b(b), illuminant(illuminant, alloc), rgbToSpectrumTable(rgbToSpectrumTable){
+                    //TODO: REMAIN TO EXPLORE
         #if 0
             // Define an RGB color space using the chromaticities of r g b w(white point) in xyY space
             // w is the xyY coord of spectrum illuminant, first we will get its XYZ coords

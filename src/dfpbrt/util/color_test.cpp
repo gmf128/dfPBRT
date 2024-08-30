@@ -7,6 +7,23 @@
 
 using namespace dfpbrt;
 
+TEST(RGBColorSpace, XYZIsOthognal) {
+    Spectrum X(&Spectra::X());
+    Spectrum Y(&Spectra::Y());
+    Spectrum Z(&Spectra::Z());
+    Float XX = InnerProduct(X, X);
+    Float XY = InnerProduct(X, Y);
+    Float XZ = InnerProduct(X, Z);
+    Float YY = InnerProduct(Y, Y);
+    Float YZ = InnerProduct(Y, Z);
+    Float ZZ = InnerProduct(Z, Z);
+    std::cout << "XX: " << XX << std::endl;
+    std::cout << "XY: " << XY << std::endl;
+    std::cout << "XZ: " << XZ << std::endl;
+    std::cout << "YY: " << YY << std::endl;
+    std::cout << "YZ: " << YZ << std::endl;
+    std::cout << "ZZ: " << ZZ << std::endl;
+}
 
 TEST(RGBColorSpace, RGBXYZ) {
     for (const RGBColorSpace &cs :
