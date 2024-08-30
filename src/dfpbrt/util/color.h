@@ -7,6 +7,7 @@
 #include <dfpbrt/util/math.h>
 #include <dfpbrt/util/taggedptr.h>
 #include <dfpbrt/util/vecmath.h>
+#include <dfpbrt/util/log.h>
 
 
 // A special present from windgi.h on Windows...
