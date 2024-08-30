@@ -13,12 +13,15 @@ namespace dfpbrt{
 
     //Second, determine the interface of the Log function
     //What is logging? Write strings into a specific file and the formats of the strings are determined by the log-level
-    void Log(LogLevel loglevel, const char * file, int line, const char * s);
+    void Log(LogLevel loglevel, const char * file, int line, std::string);
     void Log_Fatal(LogLevel loglevel, const char * file, int line, std::string s);
     void Log_Error(LogLevel loglevel, const char * file, int line, const char * s);
-    void Log_Verbose(LogLevel loglevel, const char * file, int line, const char * s);
+    void Log_Verbose(LogLevel loglevel, const char * file, int line, std::string s){
+        Log(loglevel, file, line, s);
+    };
     //Maros
     #define LOG_FATAL(...) dfpbrt::Log_Fatal(dfpbrt::LogLevel::Fatal, __FILE__, __LINE__, __VA_ARGS__)
+    #define LOG_VERBOSE(...) dfpbrt::Log_Verbose(dfpbrt::LogLevel::Fatal, __FILE__, __LINE__, __VA_ARGS__)
 
     //utils
     std::string ToString(LogLevel level);
