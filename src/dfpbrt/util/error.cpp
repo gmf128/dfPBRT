@@ -5,16 +5,16 @@
 #include <dfpbrt/util/error.h>
 
 #include <dfpbrt/util/check.h>
-#include <dfpbrt/util/display.h>
-#include <dfpbrt/util/parallel.h>
 #include <dfpbrt/util/print.h>
+#include <dfpbrt/util/log.h>
+
 
 #include <cstdio>
 #include <cstdlib>
 #include <mutex>
 #include <string>
 
-#ifdef PBRT_IS_WINDOWS
+#ifdef DFPBRT_IS_WINDOWS
 #include <windows.h>
 #endif
 
@@ -22,9 +22,6 @@ namespace dfpbrt {
 
 static bool quiet = false;
 
-void SuppressErrorMessages() {
-    quiet = true;
-}
 
 std::string FileLoc::ToString() const {
     return std::format("{}:{}:{}", std::string(filename.data(), filename.size()), line,
@@ -49,7 +46,7 @@ static void processError(const char *errorType, const FileLoc *loc, const char *
     std::lock_guard<std::mutex> lock(mutex);
     if (errorString != lastError) {
         fprintf(stderr, "%s\n", errorString.c_str());
-        LOG_VERBOSE("%s", errorString);
+        LOG_VERBOSE(std::format("{}", errorString));
         lastError = errorString;
     }
 }
@@ -60,45 +57,5 @@ void Warning(const FileLoc *loc, const char *message) {
     processError("Warning", loc, message);
 }
 
-void Error(const FileLoc *loc, const char *message) {
-    if (quiet)
-        return;
-    processError("Error", loc, message);
-}
-
-void ErrorExit(const FileLoc *loc, const char *message) {
-    processError("Error", loc, message);
-    DisconnectFromDisplayServer();
-#ifdef PBRT_IS_OSX
-    exit(1);
-#else
-    std::quick_exit(1);
-#endif
-}
-
-int LastError() {
-#ifdef PBRT_IS_WINDOWS
-    return GetLastError();
-#else
-    return errno;
-#endif
-}
-
-std::string ErrorString(int errorId) {
-#ifdef PBRT_IS_WINDOWS
-    char *s = NULL;
-    FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-                       FORMAT_MESSAGE_IGNORE_INSERTS,
-                   NULL, errorId, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&s, 0,
-                   NULL);
-
-    std::string result = StringPrintf("%s (%d)", s, errorId);
-    LocalFree(s);
-
-    return result;
-#else
-    return StringPrintf("%s (%d)", strerror(errorId), errorId);
-#endif
-}
 
 }  // namespace pbrt
