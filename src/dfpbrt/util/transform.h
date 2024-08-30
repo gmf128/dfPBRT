@@ -376,7 +376,25 @@ inline RayDifferential Transform::ApplyInverse(const RayDifferential &r,
     return ret;
 }
 
+// AnimatedTransform
+// A transform that variates from time to time, the class have a time range and each time it can record(interpolate from the begin and the end) a transform.
+class AnimatedTransform{
+    public:
+        //Constructors
+        AnimatedTransform() = default;
+        explicit AnimatedTransform(Transform startTransform, Float startTime, Transform endTransform, Float endTime): 
+                    startTransform(startTransform), startTime(startTime), endTransform(endTransform), endTime(endTime){
+                    };
+        Transform startTransform, endTransform;
+        Float startTime, endTime;
+        Transform Interpolate(Float time) const;
 
+        //operators
+        Point3f operator()(Point3f v, Float time) const{
+            return Interpolate(time)(v);
+        }
+        std::string ToString() const{};
+};
 
 }
 
