@@ -382,18 +382,65 @@ class AnimatedTransform{
     public:
         //Constructors
         AnimatedTransform() = default;
+        explicit AnimatedTransform(const Transform &t) : AnimatedTransform(t, 0, t, 1) {}
         explicit AnimatedTransform(Transform startTransform, Float startTime, Transform endTransform, Float endTime): 
                     startTransform(startTransform), startTime(startTime), endTransform(endTransform), endTime(endTime){
                     };
-        Transform startTransform, endTransform;
-        Float startTime, endTime;
+        //Boolean functions
+        DFPBRT_CPU_GPU
+        bool HasScale() const { return startTransform.HasScale() || endTransform.HasScale(); }
+        DFPBRT_CPU_GPU
         Transform Interpolate(Float time) const;
 
         //operators
+        DFPBRT_CPU_GPU
         Point3f operator()(Point3f v, Float time) const{
             return Interpolate(time)(v);
         }
+        DFPBRT_CPU_GPU
+        Vector3f operator()(Vector3f v, Float time) const{
+            return Interpolate(time)(v);
+        }
+        DFPBRT_CPU_GPU
+        Normal3f operator()(Normal3f v, Float time) const{
+            return Interpolate(time)(v);
+        }
+        DFPBRT_CPU_GPU
+        Ray operator()(const Ray &r, Float *tMax = nullptr) const;
+        DFPBRT_CPU_GPU
+        RayDifferential operator()(const RayDifferential &r, Float *tMax = nullptr) const;
+
+        //ApplyInverseFunctions
+        DFPBRT_CPU_GPU
+        Ray ApplyInverse(const Ray &r, Float *tMax = nullptr) const;
+
+        DFPBRT_CPU_GPU
+        Point3f ApplyInverse(Point3f p, Float time) const {
+            if (!actuallyAnimated)
+                return startTransform.ApplyInverse(p);
+            return Interpolate(time).ApplyInverse(p);
+        }
+        DFPBRT_CPU_GPU
+        Vector3f ApplyInverse(Vector3f v, Float time) const {
+            if (!actuallyAnimated)
+                return startTransform.ApplyInverse(v);
+            return Interpolate(time).ApplyInverse(v);
+        }
+
+        DFPBRT_CPU_GPU
+        Normal3f ApplyInverse(Normal3f n, Float time) const {
+            if (!actuallyAnimated)
+                return startTransform.ApplyInverse(n);
+            return Interpolate(time).ApplyInverse(n);
+        }
         std::string ToString() const{};
+
+        
+        Transform startTransform = 0, endTransform = 1;
+        Float startTime, endTime;
+
+    private:
+        bool actuallyAnimated = false;
 };
 
 }
