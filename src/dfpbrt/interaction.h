@@ -78,7 +78,7 @@ class Interaction {
     std::string ToString() const;
 
     DFPBRT_CPU_GPU
-    Point3f OffsetRayOrigin(Vector3f w) const { return pbrt::OffsetRayOrigin(pi, n, w); }
+    Point3f OffsetRayOrigin(Vector3f w) const { return dfpbrt::OffsetRayOrigin(pi, n, w); }
 
     DFPBRT_CPU_GPU
     Point3f OffsetRayOrigin(Point3f pt) const { return OffsetRayOrigin(pt - p()); }
@@ -90,14 +90,14 @@ class Interaction {
 
     DFPBRT_CPU_GPU
     Ray SpawnRayTo(Point3f p2) const {
-        Ray r = pbrt::SpawnRayTo(pi, n, time, p2);
+        Ray r = dfpbrt::SpawnRayTo(pi, n, time, p2);
         r.medium = GetMedium(r.d);
         return r;
     }
 
     DFPBRT_CPU_GPU
     Ray SpawnRayTo(const Interaction &it) const {
-        Ray r = pbrt::SpawnRayTo(pi, n, time, it.pi, it.n);
+        Ray r = dfpbrt::SpawnRayTo(pi, n, time, it.pi, it.n);
         r.medium = GetMedium(r.d);
         return r;
     }
@@ -162,7 +162,7 @@ class SurfaceInteraction : public Interaction {
         }
     }
     //Another constructor that is able to set faceIndex(also uses constructor delegation)
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     SurfaceInteraction(Point3fi pi, Point2f uv, Vector3f wo, Vector3f dpdu, Vector3f dpdv,
                        Normal3f dndu, Normal3f dndv, Float time, bool flipNormal,
                        int faceIndex)
@@ -170,7 +170,7 @@ class SurfaceInteraction : public Interaction {
         this->faceIndex = faceIndex;
     }
 
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     void SetShadingGeometry(Normal3f ns, Vector3f dpdus, Vector3f dpdvs, Normal3f dndus,
                             Normal3f dndvs, bool orientationIsAuthoritative) {
         // Compute _shading.n_ for _SurfaceInteraction_
@@ -208,15 +208,15 @@ class SurfaceInteraction : public Interaction {
             medium = rayMedium;
     }
 
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     void ComputeDifferentials(const RayDifferential &r, Camera camera,
                               int samplesPerPixel);
 
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     void SkipIntersection(RayDifferential *ray, Float t) const;
 
     using Interaction::SpawnRay;
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     RayDifferential SpawnRay(const RayDifferential &rayi, const BSDF &bsdf, Vector3f wi,
                              int /*BxDFFlags*/ flags, Float eta) const;
 
@@ -225,7 +225,7 @@ class SurfaceInteraction : public Interaction {
     BSSRDF GetBSSRDF(const RayDifferential &ray, SampledWavelengths &lambda,
                      Camera camera, ScratchBuffer &scratchBuffer);
 
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     SampledSpectrum Le(Vector3f w, const SampledWavelengths &lambda) const;
 
     // SurfaceInteraction Public Members
