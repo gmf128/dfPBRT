@@ -56,11 +56,15 @@ SET(DFPBRT_SOURCE
   src/dfpbrt/dfpbrt.cpp
   src/dfpbrt/ray.cpp
   src/dfpbrt/interaction.cpp
+  src/dfpbrt/cameras.cpp
+  src/dfpbrt/options.cpp
 )
 SET(DFPBRT_SOURCE_HEADERS
   src/dfpbrt/dfpbrt.h
   src/dfpbrt/ray.h
   src/dfpbrt/interaction.h
+  src/dfpbrt/cameras.h
+  src/dfpbrt/options.h
 )
 SET (DFPBRT_UTIL_SOURCE
   src/dfpbrt/util/vecmath.cpp
@@ -74,6 +78,7 @@ SET (DFPBRT_UTIL_SOURCE
   src/dfpbrt/util/colorspace.cpp
   src/dfpbrt/util/file.cpp
   src/dfpbrt/util/string.cpp
+  src/dfpbrt/util/error.cpp
 )
 
 SET (DFPBRT_UTIL_SOURCE_HEADERS
@@ -91,6 +96,8 @@ SET (DFPBRT_UTIL_SOURCE_HEADERS
   src/dfpbrt/util/string.h
   src/dfpbrt/util/colorspace.h
   src/dfpbrt/util/sampling.h
+  src/dfpbrt/util/error.h
+  src/dfpbrt/util/print.h
 )
 
 SET (DFPBRT_TEST_SOURCES

@@ -121,6 +121,8 @@ class Interval;
 template <typename T>
 class Array2D;
 
+class Film;
+
 template <typename T>
 struct SOA;
 class ScratchBuffer;

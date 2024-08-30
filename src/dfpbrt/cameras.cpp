@@ -11,6 +11,7 @@ CameraTransform::CameraTransform(const AnimatedTransform &worldFromCamera) {
     switch (Options->renderingSpace) {
     case RenderingCoordinateSystem::Camera: {
         // Compute _worldFromRender_ for camera-space rendering
+        // However, because worldFromRender cannot be animated, the implementation takes the world-from-camera transformation at the midpoint of the frame and then folds the effect of any animation in the camera transformation into renderFromCamera.
         Float tMid = (worldFromCamera.startTime + worldFromCamera.endTime) / 2;
         worldFromRender = worldFromCamera.Interpolate(tMid);
         break;
@@ -42,5 +43,164 @@ CameraTransform::CameraTransform(const AnimatedTransform &worldFromCamera) {
 std::string CameraTransform::ToString() const {
     return std::format("[ CameraTransform renderFromCamera: {} worldFromRender: {} ]",
                         renderFromCamera.ToString(), worldFromRender.ToString());
+}
+
+// Camera Method Definitions(Dispatch funtions)
+std::optional<CameraRayDifferential> Camera::GenerateRayDifferential(
+    CameraSample sample, SampledWavelengths &lambda) const {
+    auto gen = [&](auto ptr) { return ptr->GenerateRayDifferential(sample, lambda); };
+    return Dispatch(gen);
+}
+
+SampledSpectrum Camera::We(const Ray &ray, SampledWavelengths &lambda,
+                           Point2f *pRaster2) const {
+    auto we = [&](auto ptr) { return ptr->We(ray, lambda, pRaster2); };
+    return Dispatch(we);
+}
+
+void Camera::PDF_We(const Ray &ray, Float *pdfPos, Float *pdfDir) const {
+    auto pdf = [&](auto ptr) { return ptr->PDF_We(ray, pdfPos, pdfDir); };
+    return Dispatch(pdf);
+}
+
+std::optional<CameraWiSample> Camera::SampleWi(const Interaction &ref, Point2f u,
+                                                SampledWavelengths &lambda) const {
+    auto sample = [&](auto ptr) { return ptr->SampleWi(ref, u, lambda); };
+    return Dispatch(sample);
+}
+
+void Camera::InitMetadata(ImageMetadata *metadata) const {
+    auto init = [&](auto ptr) { return ptr->InitMetadata(metadata); };
+    return DispatchCPU(init);
+}
+
+std::string Camera::ToString() const {
+    if (!ptr())
+        return "(nullptr)";
+
+    auto ts = [&](auto ptr) { return ptr->ToString(); };
+    return DispatchCPU(ts);
+}
+
+// CameraBase Method Definitions
+CameraBase::CameraBase(CameraBaseParameters p)
+    : cameraTransform(p.cameraTransform),
+      shutterOpen(p.shutterOpen),
+      shutterClose(p.shutterClose),
+      film(p.film),
+      medium(p.medium) {
+    if (cameraTransform.CameraFromRenderHasScale())
+        Warning("Scaling detected in rendering space to camera space transformation!\n"
+                "The system has numerous assumptions, implicit and explicit,\n"
+                "that this transform will have no scale factors in it.\n"
+                "Proceed at your own risk; your image may have errors or\n"
+                "the system may crash as a result of this.");
+}
+
+//GenerateRay() variates in different derived class, but GenerateRayDifferential which uses GenerateRay in the same manner can be impl in an abstract way.
+std::optional<CameraRayDifferential> CameraBase::GenerateRayDifferential(
+    Camera camera, CameraSample sample, SampledWavelengths &lambda) {
+    // Generate regular camera ray _cr_ for ray differential
+    std::optional<CameraRay> cr = camera.GenerateRay(sample, lambda);
+    if (!cr)
+        // fail to generate ray, neither able to generate differentiable ray
+        return {};
+    RayDifferential rd(cr->ray);
+
+    // Find camera ray after shifting one pixel in the $x$ direction
+    std::optional<CameraRay> rx;
+    for (Float eps : {.05f, -.05f}) {
+        CameraSample sshift = sample;
+        sshift.pFilm.x += eps;
+        // Try to generate ray with _sshift_ and compute $x$ differential
+        if (rx = camera.GenerateRay(sshift, lambda); rx) {
+            rd.rxOrigin = rd.o + (rx->ray.o - rd.o) / eps;  // when eps is 0.05, it is forward differencing; when eps is -0.05, it is backward differencing
+            rd.rxDirection = rd.d + (rx->ray.d - rd.d) / eps;   // since it is either forward or backward *difference*, remember to divide eps
+            break;// !!! default: forward difference; only when forward difference is not available, we will calculate backward difference, otherwise the loop will break after forward one is done.
+        }
+    }
+
+    // Find camera ray after shifting one pixel in the $y$ direction
+    std::optional<CameraRay> ry;
+    for (Float eps : {.05f, -.05f}) {
+        CameraSample sshift = sample;
+        sshift.pFilm.y += eps;
+        if (ry = camera.GenerateRay(sshift, lambda); ry) {
+            rd.ryOrigin = rd.o + (ry->ray.o - rd.o) / eps;
+            rd.ryDirection = rd.d + (ry->ray.d - rd.d) / eps;
+            break;// !!! default: forward difference; only when forward difference is not available, we will calculate backward difference, otherwise the loop will break after forward one is done.
+        }
+    }
+
+    // Return approximate ray differential and weight
+    rd.hasDifferentials = rx && ry;
+    return CameraRayDifferential{rd, cr->weight};
+}
+
+void CameraBase::FindMinimumDifferentials(Camera camera) {
+    minPosDifferentialX = minPosDifferentialY = minDirDifferentialX =
+        minDirDifferentialY = Vector3f(Infinity, Infinity, Infinity);
+
+    CameraSample sample;
+    sample.pLens = Point2f(0.5, 0.5);
+    sample.time = 0.5;
+    SampledWavelengths lambda = SampledWavelengths::SampleVisible(0.5);
+
+    int n = 512;
+    for (int i = 0; i < n; ++i) {
+        sample.pFilm.x = Float(i) / (n - 1) * film.FullResolution().x;
+        sample.pFilm.y = Float(i) / (n - 1) * film.FullResolution().y;
+
+        pstd::optional<CameraRayDifferential> crd =
+            camera.GenerateRayDifferential(sample, lambda);
+        if (!crd)
+            continue;
+
+        RayDifferential &ray = crd->ray;
+        Vector3f dox = CameraFromRender(ray.rxOrigin - ray.o, ray.time);
+        if (Length(dox) < Length(minPosDifferentialX))
+            minPosDifferentialX = dox;
+        Vector3f doy = CameraFromRender(ray.ryOrigin - ray.o, ray.time);
+        if (Length(doy) < Length(minPosDifferentialY))
+            minPosDifferentialY = doy;
+
+        ray.d = Normalize(ray.d);
+        ray.rxDirection = Normalize(ray.rxDirection);
+        ray.ryDirection = Normalize(ray.ryDirection);
+
+        Frame f = Frame::FromZ(ray.d);
+        Vector3f df = f.ToLocal(ray.d);  // should be (0, 0, 1);
+        Vector3f dxf = Normalize(f.ToLocal(ray.rxDirection));
+        Vector3f dyf = Normalize(f.ToLocal(ray.ryDirection));
+
+        if (Length(dxf - df) < Length(minDirDifferentialX))
+            minDirDifferentialX = dxf - df;
+        if (Length(dyf - df) < Length(minDirDifferentialY))
+            minDirDifferentialY = dyf - df;
+    }
+
+    LOG_VERBOSE(std::format("Camera min pos differentials: {}, {}", minPosDifferential.ToString()X,
+                minPosDifferentialY.ToString()));
+    LOG_VERBOSE(std::format("Camera min dir differentials: {}, {}", minDirDifferentialX.ToString(),
+                minDirDifferentialY.ToString()));
+}
+
+void CameraBase::InitMetadata(ImageMetadata *metadata) const {
+    metadata->cameraFromWorld = cameraTransform.CameraFromWorld(shutterOpen).GetMatrix();
+}
+
+std::string CameraBase::ToString() const {
+    return std::format( "cameraTransform: {} shutterOpen: {} shutterClose: {} film: {} "
+                        "medium: {} minPosDifferentialX: {} minPosDifferentialY: {} "
+                        "minDirDifferentialX: {} minDirDifferentialY: {} ",
+                        cameraTransform.ToString(), shutterOpen.ToString(), shutterClose.ToString(), film.ToString(),
+                        medium ? medium.ToString() : "(nullptr)",
+                        minPosDifferentialX.ToString(), minPosDifferentialY.ToString(), minDirDifferentialX.ToString(),
+                        minDirDifferentialY.ToString());
+}
+
+std::string CameraSample::ToString() const {
+    return std::format("[ CameraSample pFilm: {} pLens: {} time: %f filterWeight: %f ]",
+                        pFilm.ToString(), pLens.ToString(), time, filterWeight);
 }
 }
