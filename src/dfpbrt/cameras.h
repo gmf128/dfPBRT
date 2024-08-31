@@ -223,6 +223,54 @@ class CameraBase {
     void FindMinimumDifferentials(Camera camera);
 };
 
+// ProjectiveCamera Definition
+class ProjectiveCamera : public CameraBase {
+  public:
+    // ProjectiveCamera Public Methods
+    ProjectiveCamera() = default;
+    void InitMetadata(ImageMetadata *metadata) const;
+
+    std::string BaseToString() const;
+
+    // General parameters are also needed to provide in baseParameters
+    // Specific parameters is provided like screenFromCamera, screenWindow, lensRadius and focalLength
+    ProjectiveCamera(CameraBaseParameters baseParameters,
+                     const Transform &screenFromCamera, Bounds2f screenWindow,
+                     Float lensRadius, Float focalDistance)
+        : CameraBase(baseParameters),
+          screenFromCamera(screenFromCamera),
+          lensRadius(lensRadius),
+          focalDistance(focalDistance) {
+        // Compute projective camera transformations
+        // Compute projective camera screen transformations
+        // Screen Space x, y \in ScreenWindow; z\in [0, 1]
+        // NDC Space x, y \in [0, 1], z remain unchanged
+        // Transform NDCFromScreen =
+        //     Scale(1 / (screenWindow.pMax.x - screenWindow.pMin.x),
+        //           1 / (screenWindow.pMax.y - screenWindow.pMin.y), 1) *
+        //     Translate(Vector3f(-screenWindow.pMin.x, -screenWindow.pMax.y, 0));
+        // Transform rasterFromNDC =
+        //     Scale(film.FullResolution().x, -film.FullResolution().y, 1);
+
+        // I changed here to satisfy the definition of NDC Space
+        Transform NDCFromScreen = 
+            Scale(1 / (screenWindow.pMax.x - screenWindow.pMin.x),
+                1 / (screenWindow.pMin.y - screenWindow.pMax.y), 1) *
+            Translate(Vector3f(-screenWindow.pMin.x, -screenWindow.pMax.y, 0));
+        Transform rasterFromNDC = Scale(film.FullResolution().x, film.FullResolution().y, 1);
+        rasterFromScreen = rasterFromNDC * NDCFromScreen;
+        screenFromRaster = Inverse(rasterFromScreen);
+
+        cameraFromRaster = Inverse(screenFromCamera) * screenFromRaster;
+    }
+
+  protected:
+    // ProjectiveCamera Protected Members
+    Transform screenFromCamera, cameraFromRaster;
+    Transform rasterFromScreen, screenFromRaster;
+    Float lensRadius, focalDistance;
+};
+
 
 }
 
