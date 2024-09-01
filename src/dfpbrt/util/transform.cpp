@@ -94,4 +94,25 @@ namespace dfpbrt{
 std::string Transform::ToString() const {
     return std::format("[ m: {0:s} mInv: {1:s} ]", m.ToString(), mInv.ToString());
 }
+
+// Used in orthoganal camera
+Transform Orthographic(Float zNear, Float zFar) {
+    return Scale(1, 1, 1 / (zFar - zNear)) * Translate(Vector3f(0, 0, -zNear));
+}
+
+// Used in perspective camera
+Transform Perspective(Float fov, Float n, Float f) {
+    // Perform projective divide for perspective projection
+    // clang-format off
+SquareMatrix<4> persp(1, 0,           0,              0,
+                      0, 1,           0,              0,
+                      0, 0, f / (f - n), -f*n / (f - n),
+                      0, 0,           1,              0);
+    // clang-format on
+
+    // Scale canonical perspective view to specified field of view
+    Float invTanAng = 1 / std::tan(Radians(fov) / 2);
+    return Scale(invTanAng, invTanAng, 1) * Transform(persp);
+}
+
 }

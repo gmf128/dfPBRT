@@ -329,6 +329,74 @@ class OrthographicCamera : public ProjectiveCamera {
     Vector3f dxCamera, dyCamera;
 };
 
+// PerspectiveCamera Definition
+class PerspectiveCamera : public ProjectiveCamera {
+  public:
+    // PerspectiveCamera Public Methods
+    // new parameter for perspective camera: fov
+    PerspectiveCamera(CameraBaseParameters baseParameters, Float fov,
+                      Bounds2f screenWindow, Float lensRadius, Float focalDist)
+        : ProjectiveCamera(baseParameters, Perspective(fov, 1e-2f, 1000.f), screenWindow,
+                           lensRadius, focalDist) {
+        // Compute differential changes in origin for perspective camera rays
+        dxCamera =
+            cameraFromRaster(Point3f(1, 0, 0)) - cameraFromRaster(Point3f(0, 0, 0));
+        dyCamera =
+            cameraFromRaster(Point3f(0, 1, 0)) - cameraFromRaster(Point3f(0, 0, 0));
+
+        // Compute _cosTotalWidth_ for perspective camera
+        Point2f radius = Point2f(film.GetFilter().Radius());
+        Point3f pCorner(-radius.x, -radius.y, 0.f);
+        Vector3f wCornerCamera = Normalize(Vector3f(cameraFromRaster(pCorner)));
+        cosTotalWidth = wCornerCamera.z;
+        DCHECK_LT(.9999 * cosTotalWidth, std::cos(Radians(fov / 2)));
+
+        // Compute image plane area at $z=1$ for _PerspectiveCamera_
+        Point2i res = film.FullResolution();
+        Point3f pMin = cameraFromRaster(Point3f(0, 0, 0));
+        Point3f pMax = cameraFromRaster(Point3f(res.x, res.y, 0));
+        pMin /= pMin.z;
+        pMax /= pMax.z;
+        A = std::abs((pMax.x - pMin.x) * (pMax.y - pMin.y));
+
+        // Compute minimum differentials for _PerspectiveCamera_
+        FindMinimumDifferentials(this);
+    }
+
+    PerspectiveCamera() = default;
+
+    static PerspectiveCamera *Create(const ParameterDictionary &parameters,
+                                     const CameraTransform &cameraTransform, Film film,
+                                     Medium medium, const FileLoc *loc,
+                                     Allocator alloc = {});
+
+    DFPBRT_CPU_GPU
+    std::optional<CameraRay> GenerateRay(CameraSample sample,
+                                          SampledWavelengths &lambda) const;
+
+    DFPBRT_CPU_GPU
+    std::optional<CameraRayDifferential> GenerateRayDifferential(
+        CameraSample sample, SampledWavelengths &lambda) const;
+
+    DFPBRT_CPU_GPU
+    SampledSpectrum We(const Ray &ray, SampledWavelengths &lambda,
+                       Point2f *pRaster2 = nullptr) const;
+    DFPBRT_CPU_GPU
+    void PDF_We(const Ray &ray, Float *pdfPos, Float *pdfDir) const;
+    DFPBRT_CPU_GPU
+    std::optional<CameraWiSample> SampleWi(const Interaction &ref, Point2f u,
+                                            SampledWavelengths &lambda) const;
+
+    std::string ToString() const;
+
+  private:
+    // PerspectiveCamera Private Members
+    Vector3f dxCamera, dyCamera;
+    Float cosTotalWidth;
+    Float A;
+};
+
+
 
 
 }

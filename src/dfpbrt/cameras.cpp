@@ -332,4 +332,133 @@ OrthographicCamera *OrthographicCamera::Create(const ParameterDictionary &parame
     return alloc.new_object<OrthographicCamera>(cameraBaseParameters, screen, lensradius,
                                                 focaldistance);
 }
+
+// PerspectiveCamera Method Definitions
+std::optional<CameraRay> PerspectiveCamera::GenerateRay(
+    CameraSample sample, SampledWavelengths &lambda) const {
+    // Compute raster and camera sample positions
+    Point3f pFilm = Point3f(sample.pFilm.x, sample.pFilm.y, 0);
+    Point3f pCamera = cameraFromRaster(pFilm);
+
+    Ray ray(Point3f(0, 0, 0), Normalize(Vector3f(pCamera)), SampleTime(sample.time),
+            medium);
+    // Modify ray for depth of field
+    if (lensRadius > 0) {
+        // Sample point on lens
+        Point2f pLens = lensRadius * SampleUniformDiskConcentric(sample.pLens);
+
+        // Compute point on plane of focus
+        Float ft = focalDistance / ray.d.z;
+        Point3f pFocus = ray(ft);
+
+        // Update ray for effect of lens
+        ray.o = Point3f(pLens.x, pLens.y, 0);
+        ray.d = Normalize(pFocus - ray.o);
+    }
+
+    return CameraRay{RenderFromCamera(ray)};
+}
+
+std::optional<CameraRayDifferential> PerspectiveCamera::GenerateRayDifferential(
+    CameraSample sample, SampledWavelengths &lambda) const {
+    // Compute raster and camera sample positions
+    Point3f pFilm = Point3f(sample.pFilm.x, sample.pFilm.y, 0);
+    Point3f pCamera = cameraFromRaster(pFilm);
+    Vector3f dir = Normalize(Vector3f(pCamera.x, pCamera.y, pCamera.z));
+    RayDifferential ray(Point3f(0, 0, 0), dir, SampleTime(sample.time), medium);
+    // Modify ray for depth of field
+    if (lensRadius > 0) {
+        // Sample point on lens
+        Point2f pLens = lensRadius * SampleUniformDiskConcentric(sample.pLens);
+
+        // Compute point on plane of focus
+        Float ft = focalDistance / ray.d.z;
+        Point3f pFocus = ray(ft);
+
+        // Update ray for effect of lens
+        ray.o = Point3f(pLens.x, pLens.y, 0);
+        ray.d = Normalize(pFocus - ray.o);
+    }
+
+    // Compute offset rays for _PerspectiveCamera_ ray differentials
+    if (lensRadius > 0) {
+        // Compute _PerspectiveCamera_ ray differentials accounting for lens
+        // Sample point on lens
+        Point2f pLens = lensRadius * SampleUniformDiskConcentric(sample.pLens);
+
+        // Compute $x$ ray differential for _PerspectiveCamera_ with lens
+        Vector3f dx = Normalize(Vector3f(pCamera + dxCamera));
+        Float ft = focalDistance / dx.z;
+        Point3f pFocus = Point3f(0, 0, 0) + (ft * dx);
+        ray.rxOrigin = Point3f(pLens.x, pLens.y, 0);
+        ray.rxDirection = Normalize(pFocus - ray.rxOrigin);
+
+        // Compute $y$ ray differential for _PerspectiveCamera_ with lens
+        Vector3f dy = Normalize(Vector3f(pCamera + dyCamera));
+        ft = focalDistance / dy.z;
+        pFocus = Point3f(0, 0, 0) + (ft * dy);
+        ray.ryOrigin = Point3f(pLens.x, pLens.y, 0);
+        ray.ryDirection = Normalize(pFocus - ray.ryOrigin);
+
+    } else {
+        ray.rxOrigin = ray.ryOrigin = ray.o;
+        ray.rxDirection = Normalize(Vector3f(pCamera) + dxCamera);
+        ray.ryDirection = Normalize(Vector3f(pCamera) + dyCamera);
+    }
+
+    ray.hasDifferentials = true;
+    return CameraRayDifferential{RenderFromCamera(ray)};
+}
+
+std::string PerspectiveCamera::ToString() const {
+    return std::string("[ PerspectiveCamera {} dxCamera: {} dyCamera: {} A: "
+                        "{} cosTotalWidth: {} ]",
+                        BaseToString(), dxCamera.ToString(), dyCamera.ToString(), A, cosTotalWidth);
+}
+
+PerspectiveCamera *PerspectiveCamera::Create(const ParameterDictionary &parameters,
+                                             const CameraTransform &cameraTransform,
+                                             Film film, Medium medium, const FileLoc *loc,
+                                             Allocator alloc) {
+    CameraBaseParameters cameraBaseParameters(cameraTransform, film, medium, parameters,
+                                              loc);
+
+    Float lensradius = parameters.GetOneFloat("lensradius", 0.f);
+    Float focaldistance = parameters.GetOneFloat("focaldistance", 1e6);
+    Float frame =
+        parameters.GetOneFloat("frameaspectratio", Float(film.FullResolution().x) /
+                                                       Float(film.FullResolution().y));
+    Bounds2f screen;
+    if (frame > 1.f) {
+        screen.pMin.x = -frame;
+        screen.pMax.x = frame;
+        screen.pMin.y = -1.f;
+        screen.pMax.y = 1.f;
+    } else {
+        screen.pMin.x = -1.f;
+        screen.pMax.x = 1.f;
+        screen.pMin.y = -1.f / frame;
+        screen.pMax.y = 1.f / frame;
+    }
+    std::vector<Float> sw = parameters.GetFloatArray("screenwindow");
+    if (!sw.empty()) {
+        if (Options->fullscreen) {
+                Warning("\"screenwindow\" is ignored in fullscreen mode");
+        } else {
+            if (sw.size() == 4) {
+                screen.pMin.x = sw[0];
+                screen.pMax.x = sw[1];
+                screen.pMin.y = sw[2];
+                screen.pMax.y = sw[3];
+            } else {
+                Error(loc, "\"screenwindow\" should have four values");
+            }
+        }
+    }
+    Float fov = parameters.GetOneFloat("fov", 90.);
+    return alloc.new_object<PerspectiveCamera>(cameraBaseParameters, fov, screen,
+                                               lensradius, focaldistance);
+}
+
+
 }

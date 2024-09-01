@@ -443,10 +443,12 @@ class AnimatedTransform{
         bool actuallyAnimated = false;
 };
 
-// Used in orthoganal camera
-Transform Orthographic(Float zNear, Float zFar) {
-    return Scale(1, 1, 1 / (zFar - zNear)) * Translate(Vector3f(0, 0, -zNear));
-}
+DFPBRT_CPU_GPU
+Transform Orthographic(Float znear, Float zfar);
+
+DFPBRT_CPU_GPU
+Transform Perspective(Float fov, Float znear, Float zfar);
+
 
 }
 
