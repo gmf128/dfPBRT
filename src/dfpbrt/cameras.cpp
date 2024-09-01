@@ -203,4 +203,133 @@ std::string CameraSample::ToString() const {
     return std::format("[ CameraSample pFilm: {} pLens: {} time: %f filterWeight: %f ]",
                         pFilm.ToString(), pLens.ToString(), time, filterWeight);
 }
+
+std::string ProjectiveCamera::BaseToString() const {
+    return CameraBase::ToString() +
+           std::string("screenFromCamera: {} cameraFromRaster: {} "
+                        "rasterFromScreen: {} screenFromRaster: {} "
+                        "lensRadius: {} focalDistance: {}",
+                        screenFromCamera.ToString(), cameraFromRaster.ToString(), rasterFromScreen.ToString(),
+                        screenFromRaster.ToString(), lensRadius.ToString(), focalDistance);
+}
+
+// OrthographicCamera Method Definitions
+std::optional<CameraRay> OrthographicCamera::GenerateRay(
+    CameraSample sample, SampledWavelengths &lambda) const {
+    // Compute raster and camera sample positions
+    Point3f pFilm = Point3f(sample.pFilm.x, sample.pFilm.y, 0);
+    Point3f pCamera = cameraFromRaster(pFilm);
+
+    Ray ray(pCamera, Vector3f(0, 0, 1), SampleTime(sample.time), medium);
+    // Modify ray for depth of field
+    if (lensRadius > 0) {
+        // Sample point on lens
+        Point2f pLens = lensRadius * SampleUniformDiskConcentric(sample.pLens);
+
+        // Compute point on plane of focus
+        Float ft = focalDistance / ray.d.z;
+        Point3f pFocus = ray(ft);
+
+        // Update ray for effect of lens
+        ray.o = Point3f(pLens.x, pLens.y, 0);
+        ray.d = Normalize(pFocus - ray.o);
+    }
+    // From camera space to render space
+    return CameraRay{RenderFromCamera(ray)};//CameraRay = Ray + SampleWeight
+}
+
+std::optional<CameraRayDifferential> OrthographicCamera::GenerateRayDifferential(
+    CameraSample sample, SampledWavelengths &lambda) const {
+    // Compute main orthographic viewing ray
+    // Compute raster and camera sample positions
+    Point3f pFilm = Point3f(sample.pFilm.x, sample.pFilm.y, 0);
+    Point3f pCamera = cameraFromRaster(pFilm);
+
+    RayDifferential ray(pCamera, Vector3f(0, 0, 1), SampleTime(sample.time), medium);
+    // Modify ray for depth of field
+    if (lensRadius > 0) {
+        // Sample point on lens
+        Point2f pLens = lensRadius * SampleUniformDiskConcentric(sample.pLens);
+
+        // Compute point on plane of focus
+        Float ft = focalDistance / ray.d.z;
+        Point3f pFocus = ray(ft);
+
+        // Update ray for effect of lens
+        ray.o = Point3f(pLens.x, pLens.y, 0);
+        ray.d = Normalize(pFocus - ray.o);
+    }
+
+    // Compute ray differentials for _OrthographicCamera_
+    if (lensRadius > 0) {
+        // Compute _OrthographicCamera_ ray differentials accounting for lens
+        // Sample point on lens
+        Point2f pLens = lensRadius * SampleUniformDiskConcentric(sample.pLens);
+
+        Float ft = focalDistance / ray.d.z;
+        Point3f pFocus = pCamera + dxCamera + (ft * Vector3f(0, 0, 1));
+        ray.rxOrigin = Point3f(pLens.x, pLens.y, 0);
+        ray.rxDirection = Normalize(pFocus - ray.rxOrigin);
+
+        pFocus = pCamera + dyCamera + (ft * Vector3f(0, 0, 1));
+        ray.ryOrigin = Point3f(pLens.x, pLens.y, 0);
+        ray.ryDirection = Normalize(pFocus - ray.ryOrigin);
+
+    } else {
+        ray.rxOrigin = ray.o + dxCamera;
+        ray.ryOrigin = ray.o + dyCamera;
+        ray.rxDirection = ray.ryDirection = ray.d;
+    }
+
+    ray.hasDifferentials = true;
+    return CameraRayDifferential{RenderFromCamera(ray)};
+}
+
+std::string OrthographicCamera::ToString() const {
+    return std::format("[ OrthographicCamera{} dxCamera: {} dyCamera: {} ]",
+                        BaseToString(), dxCamera.ToString(), dyCamera.ToString());
+}
+
+OrthographicCamera *OrthographicCamera::Create(const ParameterDictionary &parameters,
+                                               const CameraTransform &cameraTransform,
+                                               Film film, Medium medium,
+                                               const FileLoc *loc, Allocator alloc) {
+    CameraBaseParameters cameraBaseParameters(cameraTransform, film, medium, parameters,
+                                              loc);
+
+    Float lensradius = parameters.GetOneFloat("lensradius", 0.f);
+    Float focaldistance = parameters.GetOneFloat("focaldistance", 1e6f);
+    Float frame =
+        parameters.GetOneFloat("frameaspectratio", Float(film.FullResolution().x) /
+                                                       Float(film.FullResolution().y));
+    Bounds2f screen;
+    if (frame > 1.f) {
+        screen.pMin.x = -frame;
+        screen.pMax.x = frame;
+        screen.pMin.y = -1.f;
+        screen.pMax.y = 1.f;
+    } else {
+        screen.pMin.x = -1.f;
+        screen.pMax.x = 1.f;
+        screen.pMin.y = -1.f / frame;
+        screen.pMax.y = 1.f / frame;
+    }
+    std::vector<Float> sw = parameters.GetFloatArray("screenwindow");
+    if (!sw.empty()) {
+        if (Options->fullscreen) {
+                Warning("\"screenwindow\" is ignored in fullscreen mode");
+        } else {
+            if (sw.size() == 4) {
+                screen.pMin.x = sw[0];
+                screen.pMax.x = sw[1];
+                screen.pMin.y = sw[2];
+                screen.pMax.y = sw[3];
+            } else {
+                Error("\"screenwindow\" should have four values");
+            }
+        }
+    }
+    return alloc.new_object<OrthographicCamera>(cameraBaseParameters, screen, lensradius,
+                                                focaldistance);
+}
 }

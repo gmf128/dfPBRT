@@ -271,6 +271,65 @@ class ProjectiveCamera : public CameraBase {
     Float lensRadius, focalDistance;
 };
 
+// OrthographicCamera Definition
+class OrthographicCamera : public ProjectiveCamera {
+  public:
+    // OrthographicCamera Public Methods
+    OrthographicCamera(CameraBaseParameters baseParameters, Bounds2f screenWindow,
+                       Float lensRadius, Float focalDist)
+        : ProjectiveCamera(baseParameters, Orthographic(0, 1), screenWindow, lensRadius,
+                           focalDist) {
+        // The constructor here precomputes how much the ray origins shift in camera space coordinates due to a single pixel shift in the x and y directions on the film plane.
+        // Compute differential changes in origin for orthographic camera rays
+        dxCamera = cameraFromRaster(Vector3f(1, 0, 0));
+        dyCamera = cameraFromRaster(Vector3f(0, 1, 0));
+
+        // Compute minimum differentials for orthographic camera
+        minDirDifferentialX = minDirDifferentialY = Vector3f(0, 0, 0);
+        minPosDifferentialX = dxCamera;
+        minPosDifferentialY = dyCamera;
+    }
+
+    DFPBRT_CPU_GPU
+    std::optional<CameraRay> GenerateRay(CameraSample sample,
+                                          SampledWavelengths &lambda) const;
+
+    DFPBRT_CPU_GPU
+    std::optional<CameraRayDifferential> GenerateRayDifferential(
+        CameraSample sample, SampledWavelengths &lambda) const;
+
+    static OrthographicCamera *Create(const ParameterDictionary &parameters,
+                                      const CameraTransform &cameraTransform, Film film,
+                                      Medium medium, const FileLoc *loc,
+                                      Allocator alloc = {});
+
+    DFPBRT_CPU_GPU
+    SampledSpectrum We(const Ray &ray, SampledWavelengths &lambda,
+                       Point2f *pRaster2 = nullptr) const {
+        LOG_FATAL("We() unimplemented for OrthographicCamera");
+        return {};
+    }
+
+    DFPBRT_CPU_GPU
+    void PDF_We(const Ray &ray, Float *pdfPos, Float *pdfDir) const {
+        LOG_FATAL("PDF_We() unimplemented for OrthographicCamera");
+    }
+
+    DFPBRT_CPU_GPU
+    std::optional<CameraWiSample> SampleWi(const Interaction &ref, Point2f u,
+                                            SampledWavelengths &lambda) const {
+        LOG_FATAL("SampleWi() unimplemented for OrthographicCamera");
+        return {};
+    }
+
+    std::string ToString() const;
+
+  private:
+    // OrthographicCamera Private Members
+    Vector3f dxCamera, dyCamera;
+};
+
+
 
 }
 

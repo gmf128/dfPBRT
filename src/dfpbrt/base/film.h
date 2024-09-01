@@ -3,6 +3,8 @@
 
 #include <dfpbrt/dfpbrt.h>
 
+#include <dfpbrt/util/taggedptr.h>
+
 namespace dfpbrt {
 
 class VisibleSurface;

@@ -6,6 +6,7 @@
 #include <dfpbrt/util/transform.h>
 #include <dfpbrt/base/film.h>
 #include <dfpbrt/base/filter.h>
+#include <dfpbrt/base/sampler.h>
 #include <dfpbrt/util/taggedptr.h>
 
 namespace dfpbrt{

@@ -443,6 +443,11 @@ class AnimatedTransform{
         bool actuallyAnimated = false;
 };
 
+// Used in orthoganal camera
+Transform Orthographic(Float zNear, Float zFar) {
+    return Scale(1, 1, 1 / (zFar - zNear)) * Translate(Vector3f(0, 0, -zNear));
+}
+
 }
 
 
