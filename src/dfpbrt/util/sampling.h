@@ -5,6 +5,8 @@
 
 #include <dfpbrt/util/rng.h>
 
+#include <dfpbrt/util/math.h>
+
 namespace dfpbrt{
     namespace detail{
 
@@ -92,6 +94,24 @@ class Stratified1D : public detail::RNGGenerator<Stratified1D, detail::Stratifie
   public:
     using detail::RNGGenerator<Stratified1D, detail::Stratified1DIter>::RNGGenerator;
 };
+
+inline Point2f SampleUniformDiskConcentric(Point2f u) {
+    // Map _u_ to $[-1,1]^2$ and handle degeneracy at the origin
+    Point2f uOffset = 2 * u - Vector2f(1, 1);
+    if (uOffset.x == 0 && uOffset.y == 0)
+        return {0, 0};
+
+    // Apply concentric mapping to point
+    Float theta, r;
+    if (std::abs(uOffset.x) > std::abs(uOffset.y)) {
+        r = uOffset.x;
+        theta = PiOver4 * (uOffset.y / uOffset.x);
+    } else {
+        r = uOffset.y;
+        theta = PiOver2 - PiOver4 * (uOffset.x / uOffset.y);
+    }
+    return r * Point2f(std::cos(theta), std::sin(theta));
+}
 
 
 
