@@ -4,6 +4,7 @@
 #include <dfpbrt/options.h>
 
 #include <dfpbrt/util/log.h>
+#include <dfpbrt/util/error.h>
 
 namespace dfpbrt{
 // CameraTransform Method Definitions
@@ -139,7 +140,7 @@ std::optional<CameraRayDifferential> CameraBase::GenerateRayDifferential(
 
 void CameraBase::FindMinimumDifferentials(Camera camera) {
     minPosDifferentialX = minPosDifferentialY = minDirDifferentialX =
-        minDirDifferentialY = Vector3f(Infinity, Infinity, Infinity);
+        minDirDifferentialY = Vector3f(Infinity_, Infinity_, Infinity_);
 
     CameraSample sample;
     sample.pLens = Point2f(0.5, 0.5);
@@ -151,7 +152,7 @@ void CameraBase::FindMinimumDifferentials(Camera camera) {
         sample.pFilm.x = Float(i) / (n - 1) * film.FullResolution().x;
         sample.pFilm.y = Float(i) / (n - 1) * film.FullResolution().y;
 
-        pstd::optional<CameraRayDifferential> crd =
+        std::optional<CameraRayDifferential> crd =
             camera.GenerateRayDifferential(sample, lambda);
         if (!crd)
             continue;
@@ -206,7 +207,7 @@ std::string CameraSample::ToString() const {
 
 std::string ProjectiveCamera::BaseToString() const {
     return CameraBase::ToString() +
-           std::string("screenFromCamera: {} cameraFromRaster: {} "
+           std::format("screenFromCamera: {} cameraFromRaster: {} "
                         "rasterFromScreen: {} screenFromRaster: {} "
                         "lensRadius: {} focalDistance: {}",
                         screenFromCamera.ToString(), cameraFromRaster.ToString(), rasterFromScreen.ToString(),
@@ -411,7 +412,7 @@ std::optional<CameraRayDifferential> PerspectiveCamera::GenerateRayDifferential(
 }
 
 std::string PerspectiveCamera::ToString() const {
-    return std::string("[ PerspectiveCamera {} dxCamera: {} dyCamera: {} A: "
+    return std::foramt("[ PerspectiveCamera {} dxCamera: {} dyCamera: {} A: "
                         "{} cosTotalWidth: {} ]",
                         BaseToString(), dxCamera.ToString(), dyCamera.ToString(), A, cosTotalWidth);
 }
@@ -458,6 +459,92 @@ PerspectiveCamera *PerspectiveCamera::Create(const ParameterDictionary &paramete
     Float fov = parameters.GetOneFloat("fov", 90.);
     return alloc.new_object<PerspectiveCamera>(cameraBaseParameters, fov, screen,
                                                lensradius, focaldistance);
+}
+
+// SphericalCamera Method Definitions
+std::optional<CameraRay> SphericalCamera::GenerateRay(CameraSample sample,
+                                                       SampledWavelengths &lambda) const {
+    // Compute spherical camera ray direction
+    // Film space position as uv and transform it into the 3D sphere directions
+    Point2f uv(sample.pFilm.x / film.FullResolution().x,
+               sample.pFilm.y / film.FullResolution().y);
+    Vector3f dir;
+    if (mapping == EquiRectangular) {
+        // Compute ray direction using equirectangular mapping
+        Float theta = Pi * uv[1], phi = 2 * Pi * uv[0];
+        dir = SphericalDirection(std::sin(theta), std::cos(theta), phi);
+
+    } else {
+        // Compute ray direction using equal area mapping
+        uv = WrapEqualAreaSquare(uv);
+        dir = EqualAreaSquareToSphere(uv);
+    }
+    std::swap(dir.y, dir.z);
+
+    Ray ray(Point3f(0, 0, 0), dir, SampleTime(sample.time), medium);
+    return CameraRay{RenderFromCamera(ray)};
+}
+
+SphericalCamera *SphericalCamera::Create(const ParameterDictionary &parameters,
+                                         const CameraTransform &cameraTransform,
+                                         Film film, Medium medium, const FileLoc *loc,
+                                         Allocator alloc) {
+    CameraBaseParameters cameraBaseParameters(cameraTransform, film, medium, parameters,
+                                              loc);
+
+    Float lensradius = parameters.GetOneFloat("lensradius", 0.f);
+    Float focaldistance = parameters.GetOneFloat("focaldistance", 1e30f);
+    Float frame =
+        parameters.GetOneFloat("frameaspectratio", Float(film.FullResolution().x) /
+                                                       Float(film.FullResolution().y));
+    Bounds2f screen;
+    if (frame > 1.f) {
+        screen.pMin.x = -frame;
+        screen.pMax.x = frame;
+        screen.pMin.y = -1.f;
+        screen.pMax.y = 1.f;
+    } else {
+        screen.pMin.x = -1.f;
+        screen.pMax.x = 1.f;
+        screen.pMin.y = -1.f / frame;
+        screen.pMax.y = 1.f / frame;
+    }
+    std::vector<Float> sw = parameters.GetFloatArray("screenwindow");
+    if (!sw.empty()) {
+        if (Options->fullscreen) {
+                Warning("\"screenwindow\" is ignored in fullscreen mode");
+        } else {
+            if (sw.size() == 4) {
+                screen.pMin.x = sw[0];
+                screen.pMax.x = sw[1];
+                screen.pMin.y = sw[2];
+                screen.pMax.y = sw[3];
+            } else {
+                Error(loc, "\"screenwindow\" should have four values");
+            }
+        }
+    }
+    (void)lensradius;     // don't need this
+    (void)focaldistance;  // don't need this
+
+    std::string m = parameters.GetOneString("mapping", "equalarea");
+    Mapping mapping;
+    if (m == "equalarea")
+        mapping = EqualArea;
+    else if (m == "equirectangular")
+        mapping = EquiRectangular;
+    else
+        ErrorExit(loc,
+                  "%s: unknown mapping for spherical camera. (Must be "
+                  "\"equalarea\" or \"equirectangular\".)",
+                  m);
+
+    return alloc.new_object<SphericalCamera>(cameraBaseParameters, mapping);
+}
+
+std::string SphericalCamera::ToString() const {
+    return std::format("[ SphericalCamera {} mapping: {} ]", CameraBase::ToString(),
+                        mapping == EquiRectangular ? "EquiRectangular" : "EqualArea");
 }
 
 

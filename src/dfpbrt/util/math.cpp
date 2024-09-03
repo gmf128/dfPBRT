@@ -12,6 +12,32 @@ namespace dfpbrt{
     std::string SquareMatrix<3>::ToString() const{
         return std::format("{} {} {}\n {} {} {}\n{} {} {}\n", m[0][0], m[0][1], m[0][2], m[1][0], m[1][1], m[1][2], m[2][0], m[2][1], m[2][2]);
     }
+    // Square--Sphere Mapping Function Definitions
+    // Via source code from Clarberg: Fast Equal-Area Mapping of the (Hemi)Sphere using SIMD
+    Vector3f EqualAreaSquareToSphere(Point2f p) {
+        CHECK(p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1);
+        // Transform _p_ to $[-1,1]^2$ and compute absolute values
+        Float u = 2 * p.x - 1, v = 2 * p.y - 1;
+        Float up = std::abs(u), vp = std::abs(v);
+
+        // Compute radius _r_ as signed distance from diagonal
+        Float signedDistance = 1 - (up + vp);
+        Float d = std::abs(signedDistance);
+        Float r = 1 - d;
+
+        // Compute angle $\phi$ for square to sphere mapping
+        Float phi = (r == 0 ? 1 : (vp - up) / r + 1) * Pi / 4;
+
+        // Find $z$ coordinate for spherical direction
+        Float z = std::copysign(1 - Sqr(r), signedDistance);
+
+        // Compute $\cos\phi$ and $\sin\phi$ for original quadrant and return vector
+        Float cosPhi = std::copysign(std::cos(phi), u);
+        Float sinPhi = std::copysign(std::sin(phi), v);
+        return Vector3f(cosPhi * r * SafeSqrt(2 - Sqr(r)), sinPhi * r * SafeSqrt(2 - Sqr(r)),
+                        z);
+}
+
 
     // Via source code from Clarberg: Fast Equal-Area Mapping of the (Hemi)Sphere using SIMD
     Point2f EqualAreaSphereToSquare(Vector3f d) {
