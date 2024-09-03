@@ -1154,6 +1154,9 @@ extern template class SquareMatrix<2>;
 extern template class SquareMatrix<3>;
 extern template class SquareMatrix<4>;
 
+Point2f WrapEqualAreaSquare(Point2f uv);
+Point2f EqualAreaSphereToSquare(Vector3f d);
+
 }
 
 #endif
