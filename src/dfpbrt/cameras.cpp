@@ -412,7 +412,7 @@ std::optional<CameraRayDifferential> PerspectiveCamera::GenerateRayDifferential(
 }
 
 std::string PerspectiveCamera::ToString() const {
-    return std::foramt("[ PerspectiveCamera {} dxCamera: {} dyCamera: {} A: "
+    return std::format("[ PerspectiveCamera {} dxCamera: {} dyCamera: {} A: "
                         "{} cosTotalWidth: {} ]",
                         BaseToString(), dxCamera.ToString(), dyCamera.ToString(), A, cosTotalWidth);
 }
