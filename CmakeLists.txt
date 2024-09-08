@@ -58,6 +58,7 @@ SET(DFPBRT_SOURCE
   src/dfpbrt/interaction.cpp
   src/dfpbrt/cameras.cpp
   src/dfpbrt/options.cpp
+  src/dfpbrt/film.cpp
 )
 SET(DFPBRT_SOURCE_HEADERS
   src/dfpbrt/dfpbrt.h
@@ -65,6 +66,7 @@ SET(DFPBRT_SOURCE_HEADERS
   src/dfpbrt/interaction.h
   src/dfpbrt/cameras.h
   src/dfpbrt/options.h
+  src/dfpbrt/film.h
 )
 SET (DFPBRT_UTIL_SOURCE
   src/dfpbrt/util/vecmath.cpp

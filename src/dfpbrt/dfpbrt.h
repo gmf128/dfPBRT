@@ -122,6 +122,7 @@ template <typename T>
 class Array2D;
 
 class Film;
+class Filter;
 
 template <typename T>
 struct SOA;
