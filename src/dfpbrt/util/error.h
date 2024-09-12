@@ -30,6 +30,16 @@ void Warning(const FileLoc *loc, const char *message);
 template <typename... Args>
 inline void Warning(const char *fmt, Args &&...args);
 
+void ErrorExit(const FileLoc *loc, const char *message);
+
+template <typename... Args>
+inline void ErrorExit(const char *fmt, Args &&...args);
+
+void Error(const FileLoc *loc, const char *message);
+
+template <typename... Args>
+inline void Error(const char *fmt, Args &&...args);
+
 // Error Reporting Inline Functions
 template <typename... Args>
 inline void Warning(const FileLoc *loc, const char *fmt, Args &&...args) {
@@ -41,6 +51,33 @@ inline void Warning(const char *fmt, Args &&...args) {
     Warning(nullptr, std::format(fmt, std::forward<Args>(args)...).c_str());
 }
 
+inline void ErrorExit(const char *fmt){
+    ErrorExit(nullptr, fmt);
+}
+
+template <typename... Args>
+inline void ErrorExit(const FileLoc *loc, const char *fmt, Args &&...args) {
+    ErrorExit(loc, std::format(fmt, std::forward<Args>(args)...).c_str());
+}
+
+template <typename... Args>
+inline void ErrorExit(const char *fmt, Args &&...args) {
+    ErrorExit(nullptr, std::format(fmt, std::forward<Args>(args)...).c_str());
+}
+
+inline void Error(const char *fmt){
+    Error(nullptr, fmt);
+}
+
+template <typename... Args>
+inline void Error(const FileLoc *loc, const char *fmt, Args &&...args) {
+    Error(loc, std::format(fmt, std::forward<Args>(args)...).c_str());
+}
+
+template <typename... Args>
+inline void Error(const char *fmt, Args &&...args) {
+    Error(nullptr, std::format(fmt, std::forward<Args>(args)...).c_str());
+}
 
 }  // namespace pbrt
 

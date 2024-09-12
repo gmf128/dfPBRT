@@ -57,5 +57,16 @@ void Warning(const FileLoc *loc, const char *message) {
     processError("Warning", loc, message);
 }
 
+void ErrorExit(const FileLoc *loc, const char *message) {
+    processError("Error", loc, message);
+    std::exit(EXIT_FAILURE);
+    return;
+}
+
+void Error(const FileLoc *loc, const char *message){
+    processError("Error", loc, message);
+    return;
+}
+
 
 }  // namespace pbrt
