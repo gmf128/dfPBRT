@@ -1094,6 +1094,26 @@ inline Float Determinant(const SquareMatrix<N> &m) {
     return det;
 }
 
+//Linear least square method to solve linear equations
+template <int N>
+std::optional<SquareMatrix<N>> LinearLeastSquares(const Float A[][N], const Float B[][N],
+                                                   int rows) {
+    SquareMatrix<N> AtA = SquareMatrix<N>::Zero();
+    SquareMatrix<N> AtB = SquareMatrix<N>::Zero();
+
+    for (int i = 0; i < N; ++i)
+        for (int j = 0; j < N; ++j)
+            for (int r = 0; r < rows; ++r) {
+                AtA[i][j] += A[r][i] * A[r][j];
+                AtB[i][j] += A[r][i] * B[r][j];
+            }
+
+    auto AtAi = Inverse(AtA);
+    if (!AtAi)
+        return {};
+    return Transpose(*AtAi * AtB);
+}
+
 template <>
 inline std::optional<SquareMatrix<4>> Inverse(const SquareMatrix<4> &m) {
     // Via: https://github.com/google/ion/blob/master/ion/math/matrixutils.cc,
