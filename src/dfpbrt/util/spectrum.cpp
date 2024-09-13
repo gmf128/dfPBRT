@@ -125,6 +125,13 @@ PiecewiseLinearSpectrum *PiecewiseLinearSpectrum::FromInterleaved(
     return spec;
 }
 
+PiecewiseLinearSpectrum *PiecewiseLinearSpectrum::FromInterleaved(
+    std::initializer_list<const Float> samples, bool normalize, Allocator alloc) {
+    std::span<const Float> samples_(samples.begin(), samples.end());
+    return FromInterleaved(samples_, normalize, alloc);
+}
+
+
 std::string BlackbodySpectrum::ToString() const {
     return std::format("[ BlackbodySpectrum T: {} ]", T);
 }

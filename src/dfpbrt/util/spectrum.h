@@ -502,6 +502,8 @@ class PiecewiseLinearSpectrum {
 
     static PiecewiseLinearSpectrum *FromInterleaved(std::span<const Float> samples,
                                                     bool normalize, Allocator alloc);
+    static PiecewiseLinearSpectrum *FromInterleaved(std::initializer_list<const Float> samples,
+                                                    bool normalize, Allocator alloc);
 
   private:
     // PiecewiseLinearSpectrum Private Members
