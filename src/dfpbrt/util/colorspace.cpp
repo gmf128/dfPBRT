@@ -104,7 +104,7 @@ void RGBColorSpace::Init(Allocator alloc) {
     ACES2065_1 = alloc.new_object<RGBColorSpace>(
         Point2f(.7347, .2653), Point2f(0., 1.), Point2f(.0001, -.077),
         GetNamedSpectrum("illum-acesD60"), RGBToSpectrumTable::ACES2065_1, alloc);
-#ifdef PBRT_BUILD_GPU_RENDERER
+#ifdef DFPBRT_BUILD_GPU_RENDERER
     if (Options->useGPU) {
         CUDA_CHECK(cudaMemcpyToSymbol(RGBColorSpace_sRGB, &RGBColorSpace::sRGB,
                                       sizeof(RGBColorSpace_sRGB)));

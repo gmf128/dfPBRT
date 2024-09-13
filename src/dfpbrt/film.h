@@ -4,6 +4,7 @@
 #include <dfpbrt/dfpbrt.h>
 #include <dfpbrt/util/color.h>
 #include <dfpbrt/util/colorspace.h>
+#include <dfpbrt/util/error.h>
 
 namespace dfpbrt{
 
@@ -45,7 +46,7 @@ class PixelSensor {
         }
 
         // Initialize _XYZFromSensorRGB_ using linear least squares
-        pstd::optional<SquareMatrix<3>> m =
+        std::optional<SquareMatrix<3>> m =
             LinearLeastSquares(rgbCamera, xyzOutput, nSwatchReflectances);
         if (!m)
             ErrorExit("Sensor XYZ from RGB matrix could not be solved.");
@@ -66,7 +67,7 @@ class PixelSensor {
         }
     }
 
-    PBRT_CPU_GPU
+    DFPBRT_CPU_GPU
     RGB ToSensorRGB(SampledSpectrum L, const SampledWavelengths &lambda) const {
         L = SafeDiv(L, lambda.PDF());
         return imagingRatio * RGB((r_bar.Sample(lambda) * L).Average(),
@@ -94,6 +95,7 @@ class PixelSensor {
 template <typename Triplet>
 inline Triplet PixelSensor::ProjectReflectance(Spectrum refl, Spectrum illum, Spectrum b1,
                                                Spectrum b2, Spectrum b3) {
+    //g_integral represents green integral: the results are normalized using green since green has perhaps the biggest value
     Triplet result;
     Float g_integral = 0;
     for (Float lambda = Lambda_min; lambda <= Lambda_max; ++lambda) {
