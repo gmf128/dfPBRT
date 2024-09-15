@@ -2,11 +2,15 @@
 #define DFPBRT_FILM_H
 
 #include <dfpbrt/dfpbrt.h>
+
+#include <dfpbrt/base/film.h>
+#include <dfpbrt/base/filter.h>
+
 #include <dfpbrt/util/color.h>
 #include <dfpbrt/util/colorspace.h>
 #include <dfpbrt/util/error.h>
 #include <dfpbrt/interaction.h>
-#include <dfpbrt/base/filter.h>
+
 
 namespace dfpbrt{
 
@@ -206,6 +210,381 @@ class FilmBase {
     std::string filename;
 };
 
+// RGBFilm Definition
+class RGBFilm : public FilmBase {
+  public:
+    // RGBFilm Public Methods
+    DFPBRT_CPU_GPU
+    bool UsesVisibleSurface() const { return false; }
+
+    DFPBRT_CPU_GPU
+    void AddSample(Point2i pFilm, SampledSpectrum L, const SampledWavelengths &lambda,
+                   const VisibleSurface *, Float weight) {
+        // Convert sample radiance to _PixelSensor_ RGB
+        RGB rgb = sensor->ToSensorRGB(L, lambda);
+
+        // Optionally clamp sensor RGB value
+        // Why>: A widely used technique to reduce the effect of fireflies is to clamp all sample contributions to some maximum amount. 
+        Float m = std::max({rgb.r, rgb.g, rgb.b});
+        if (m > maxComponentValue)
+            rgb *= maxComponentValue / m;
+
+        DCHECK(InsideExclusive(pFilm, pixelBounds));
+        // Update pixel values with filtered sample contribution
+        Pixel &pixel = pixels[pFilm];
+        for (int c = 0; c < 3; ++c)
+            pixel.rgbSum[c] += weight * rgb[c];
+        pixel.weightSum += weight;
+    }
+
+    DFPBRT_CPU_GPU
+    RGB GetPixelRGB(Point2i p, Float splatScale = 1) const {
+        const Pixel &pixel = pixels[p];
+        RGB rgb(pixel.rgbSum[0], pixel.rgbSum[1], pixel.rgbSum[2]);
+        // Normalize _rgb_ with weight sum
+        Float weightSum = pixel.weightSum;
+        if (weightSum != 0)
+            rgb /= weightSum;
+
+        // Add splat value at pixel
+        for (int c = 0; c < 3; ++c)
+            rgb[c] += splatScale * pixel.rgbSplat[c] / filterIntegral;
+
+        // Convert _rgb_ to output RGB color space
+        rgb = outputRGBFromSensorRGB * rgb;
+
+        return rgb;
+    }
+
+    RGBFilm(FilmBaseParameters p, const RGBColorSpace *colorSpace,
+            Float maxComponentValue = Infinity_, bool writeFP16 = true,
+            Allocator alloc = {});
+
+    static RGBFilm *Create(const ParameterDictionary &parameters, Float exposureTime,
+                           Filter filter, const RGBColorSpace *colorSpace,
+                           const FileLoc *loc, Allocator alloc);
+
+    DFPBRT_CPU_GPU
+    void AddSplat(Point2f p, SampledSpectrum v, const SampledWavelengths &lambda);
+
+    void WriteImage(ImageMetadata metadata, Float splatScale = 1);
+    Image GetImage(ImageMetadata *metadata, Float splatScale = 1);
+
+    std::string ToString() const;
+
+    DFPBRT_CPU_GPU
+    RGB ToOutputRGB(SampledSpectrum L, const SampledWavelengths &lambda) const {
+        RGB sensorRGB = sensor->ToSensorRGB(L, lambda);
+        return outputRGBFromSensorRGB * sensorRGB;
+    }
+
+    DFPBRT_CPU_GPU void ResetPixel(Point2i p) { std::memset(&pixels[p], 0, sizeof(Pixel)); }
+
+  private:
+    // RGBFilm::Pixel Definition
+    struct Pixel {
+        Pixel() = default;
+        double rgbSum[3] = {0., 0., 0.};
+        double weightSum = 0.;
+        AtomicDouble rgbSplat[3];
+    };
+
+    // RGBFilm Private Members
+    const RGBColorSpace *colorSpace;
+    Float maxComponentValue;
+    bool writeFP16;
+    Float filterIntegral;
+    SquareMatrix<3> outputRGBFromSensorRGB;
+    Array2D<Pixel> pixels;
+};
+
+// GBufferFilm Definition
+class GBufferFilm : public FilmBase {
+  public:
+    // GBufferFilm Public Methods
+    GBufferFilm(FilmBaseParameters p, const AnimatedTransform &outputFromRender,
+                bool applyInverse, const RGBColorSpace *colorSpace,
+                Float maxComponentValue = Infinity, bool writeFP16 = true,
+                Allocator alloc = {});
+
+    static GBufferFilm *Create(const ParameterDictionary &parameters, Float exposureTime,
+                               const CameraTransform &cameraTransform, Filter filter,
+                               const RGBColorSpace *colorSpace, const FileLoc *loc,
+                               Allocator alloc);
+
+    DFPBRT_CPU_GPU
+    void AddSample(Point2i pFilm, SampledSpectrum L, const SampledWavelengths &lambda,
+                   const VisibleSurface *visibleSurface, Float weight);
+
+    DFPBRT_CPU_GPU
+    void AddSplat(Point2f p, SampledSpectrum v, const SampledWavelengths &lambda);
+
+    DFPBRT_CPU_GPU
+    RGB ToOutputRGB(SampledSpectrum L, const SampledWavelengths &lambda) const {
+        RGB cameraRGB = sensor->ToSensorRGB(L, lambda);
+        return outputRGBFromSensorRGB * cameraRGB;
+    }
+
+    DFPBRT_CPU_GPU
+    bool UsesVisibleSurface() const { return true; }
+
+    DFPBRT_CPU_GPU
+    RGB GetPixelRGB(Point2i p, Float splatScale = 1) const {
+        const Pixel &pixel = pixels[p];
+        RGB rgb(pixel.rgbSum[0], pixel.rgbSum[1], pixel.rgbSum[2]);
+
+        // Normalize pixel with weight sum
+        Float weightSum = pixel.weightSum;
+        if (weightSum != 0)
+            rgb /= weightSum;
+
+        // Add splat value at pixel
+        for (int c = 0; c < 3; ++c)
+            rgb[c] += splatScale * pixel.rgbSplat[c] / filterIntegral;
+
+        rgb = outputRGBFromSensorRGB * rgb;
+
+        return rgb;
+    }
+
+    void WriteImage(ImageMetadata metadata, Float splatScale = 1);
+    Image GetImage(ImageMetadata *metadata, Float splatScale = 1);
+
+    std::string ToString() const;
+
+    DFPBRT_CPU_GPU void ResetPixel(Point2i p) { std::memset(&pixels[p], 0, sizeof(Pixel)); }
+
+  private:
+    // GBufferFilm::Pixel Definition
+    struct Pixel {
+        Pixel() = default;
+        double rgbSum[3] = {0., 0., 0.};
+        double weightSum = 0., gBufferWeightSum = 0.;
+        AtomicDouble rgbSplat[3];
+        Point3f pSum;
+        Float dzdxSum = 0, dzdySum = 0;
+        Normal3f nSum, nsSum;
+        Point2f uvSum;
+        double rgbAlbedoSum[3] = {0., 0., 0.};
+        VarianceEstimator<Float> rgbVariance[3];
+    };
+
+    // GBufferFilm Private Members
+    AnimatedTransform outputFromRender;
+    bool applyInverse;
+    Array2D<Pixel> pixels;
+    const RGBColorSpace *colorSpace;
+    Float maxComponentValue;
+    bool writeFP16;
+    Float filterIntegral;
+    SquareMatrix<3> outputRGBFromSensorRGB;
+};
+
+// SpectralFilm Definition
+class SpectralFilm : public FilmBase {
+  public:
+    // SpectralFilm Public Methods
+    DFPBRT_CPU_GPU
+    bool UsesVisibleSurface() const { return false; }
+
+    DFPBRT_CPU_GPU
+    SampledWavelengths SampleWavelengths(Float u) const {
+        return SampledWavelengths::SampleUniform(u, lambdaMin, lambdaMax);
+    }
+
+    DFPBRT_CPU_GPU
+    void AddSample(Point2i pFilm, SampledSpectrum L, const SampledWavelengths &lambda,
+                   const VisibleSurface *, Float weight) {
+        // Start by doing more or less what RGBFilm::AddSample() does so
+        // that we can maintain accurate RGB values.
+
+        // Convert sample radiance to _PixelSensor_ RGB
+        RGB rgb = sensor->ToSensorRGB(L, lambda);
+
+        // Optionally clamp sensor RGB value
+        Float m = std::max({rgb.r, rgb.g, rgb.b});
+        if (m > maxComponentValue)
+            rgb *= maxComponentValue / m;
+
+        DCHECK(InsideExclusive(pFilm, pixelBounds));
+        // Update RGB fields in Pixel structure.
+        Pixel &pixel = pixels[pFilm];
+        for (int c = 0; c < 3; ++c)
+            pixel.rgbSum[c] += weight * rgb[c];
+        pixel.rgbWeightSum += weight;
+
+        // Spectral processing starts here.
+        // Optionally clamp spectral value. (TODO: for spectral should we
+        // just clamp channels individually?)
+        Float lm = L.MaxComponentValue();
+        if (lm > maxComponentValue)
+            L *= maxComponentValue / lm;
+
+        // The CIE_Y_integral factor effectively cancels out the effect of
+        // the conversion of light sources to use photometric units for
+        // specification.  We then do *not* divide by the PDF in |lambda|
+        // but take advantage of the fact that we know that it is uniform
+        // in SampleWavelengths(), the fact that the buckets all have the
+        // same extend, and can then just average radiance in buckets
+        // below.
+        L *= weight * CIE_Y_integral;
+
+        // Accumulate contributions in spectral buckets.
+        for (int i = 0; i < NSpectrumSamples; ++i) {
+            int b = LambdaToBucket(lambda[i]);
+            pixel.bucketSums[b] += L[i];
+            pixel.weightSums[b] += weight;
+        }
+    }
+
+    DFPBRT_CPU_GPU
+    RGB GetPixelRGB(Point2i p, Float splatScale = 1) const;
+
+    SpectralFilm(FilmBaseParameters p, Float lambdaMin, Float lambdaMax, int nBuckets,
+                 const RGBColorSpace *colorSpace, Float maxComponentValue = Infinity,
+                 bool writeFP16 = true, Allocator alloc = {});
+
+    static SpectralFilm *Create(const ParameterDictionary &parameters, Float exposureTime,
+                                Filter filter, const RGBColorSpace *colorSpace,
+                                const FileLoc *loc, Allocator alloc);
+
+    DFPBRT_CPU_GPU
+    void AddSplat(Point2f p, SampledSpectrum v, const SampledWavelengths &lambda);
+
+    void WriteImage(ImageMetadata metadata, Float splatScale = 1);
+
+    // Returns an image with both RGB and spectral components, following
+    // the layout proposed in "An OpenEXR Layout for Sepctral Images" by
+    // Fichet et al., https://jcgt.org/published/0010/03/01/.
+    Image GetImage(ImageMetadata *metadata, Float splatScale = 1);
+
+    std::string ToString() const;
+
+    DFPBRT_CPU_GPU
+    RGB ToOutputRGB(SampledSpectrum L, const SampledWavelengths &lambda) const {
+        LOG_FATAL("ToOutputRGB() is unimplemented. But that's ok since it's only used "
+                  "in the SPPM integrator, which is inherently very much based on "
+                  "RGB output.");
+        return {};
+    }
+
+    DFPBRT_CPU_GPU void ResetPixel(Point2i p) {
+        Pixel &pix = pixels[p];
+        pix.rgbSum[0] = pix.rgbSum[1] = pix.rgbSum[2] = 0.;
+        pix.rgbWeightSum = 0.;
+        pix.rgbSplat[0] = pix.rgbSplat[1] = pix.rgbSplat[2] = 0.;
+        std::memset(pix.bucketSums, 0, nBuckets * sizeof(double));
+        std::memset(pix.weightSums, 0, nBuckets * sizeof(double));
+        std::memset(pix.bucketSplats, 0, nBuckets * sizeof(AtomicDouble));
+    }
+
+  private:
+    DFPBRT_CPU_GPU
+    int LambdaToBucket(Float lambda) const {
+        DCHECK_RARE(1e6f, lambda < lambdaMin || lambda > lambdaMax);
+        int bucket = nBuckets * (lambda - lambdaMin) / (lambdaMax - lambdaMin);
+        return Clamp(bucket, 0, nBuckets - 1);
+    }
+
+    // SpectralFilm::Pixel Definition
+    struct Pixel {
+        Pixel() = default;
+        // Continue to store RGB, both to include in the final image as
+        // well as for previews during rendering.
+        double rgbSum[3] = {0., 0., 0.};
+        double rgbWeightSum = 0.;
+        AtomicDouble rgbSplat[3];
+        // The following will all have nBuckets entries.
+        double *bucketSums, *weightSums;
+        AtomicDouble *bucketSplats;
+    };
+
+    // SpectralFilm Private Members
+    const RGBColorSpace *colorSpace;
+    Float lambdaMin, lambdaMax;
+    int nBuckets;
+    Float maxComponentValue;
+    bool writeFP16;
+    Float filterIntegral;
+    Array2D<Pixel> pixels;
+    SquareMatrix<3> outputRGBFromSensorRGB;
+};
+
+DFPBRT_CPU_GPU
+inline SampledWavelengths Film::SampleWavelengths(Float u) const {
+    auto sample = [&](auto ptr) { return ptr->SampleWavelengths(u); };
+    return Dispatch(sample);
+}
+
+DFPBRT_CPU_GPU
+inline Bounds2f Film::SampleBounds() const {
+    auto sb = [&](auto ptr) { return ptr->SampleBounds(); };
+    return Dispatch(sb);
+}
+
+DFPBRT_CPU_GPU
+inline Bounds2i Film::PixelBounds() const {
+    auto pb = [&](auto ptr) { return ptr->PixelBounds(); };
+    return Dispatch(pb);
+}
+
+DFPBRT_CPU_GPU
+inline Point2i Film::FullResolution() const {
+    auto fr = [&](auto ptr) { return ptr->FullResolution(); };
+    return Dispatch(fr);
+}
+
+DFPBRT_CPU_GPU
+inline Float Film::Diagonal() const {
+    auto diag = [&](auto ptr) { return ptr->Diagonal(); };
+    return Dispatch(diag);
+}
+
+DFPBRT_CPU_GPU
+inline Filter Film::GetFilter() const {
+    auto filter = [&](auto ptr) { return ptr->GetFilter(); };
+    return Dispatch(filter);
+}
+
+DFPBRT_CPU_GPU
+inline bool Film::UsesVisibleSurface() const {
+    auto uses = [&](auto ptr) { return ptr->UsesVisibleSurface(); };
+    return Dispatch(uses);
+}
+
+DFPBRT_CPU_GPU
+inline RGB Film::GetPixelRGB(Point2i p, Float splatScale) const {
+    auto get = [&](auto ptr) { return ptr->GetPixelRGB(p, splatScale); };
+    return Dispatch(get);
+}
+
+DFPBRT_CPU_GPU
+inline RGB Film::ToOutputRGB(SampledSpectrum L, const SampledWavelengths &lambda) const {
+    auto out = [&](auto ptr) { return ptr->ToOutputRGB(L, lambda); };
+    return Dispatch(out);
+}
+
+DFPBRT_CPU_GPU
+inline void Film::AddSample(Point2i pFilm, SampledSpectrum L,
+                            const SampledWavelengths &lambda,
+                            const VisibleSurface *visibleSurface, Float weight) {
+    auto add = [&](auto ptr) {
+        return ptr->AddSample(pFilm, L, lambda, visibleSurface, weight);
+    };
+    return Dispatch(add);
+}
+
+DFPBRT_CPU_GPU
+inline const PixelSensor *Film::GetPixelSensor() const {
+    auto filter = [&](auto ptr) { return ptr->GetPixelSensor(); };
+    return Dispatch(filter);
+}
+
+DFPBRT_CPU_GPU
+inline void Film::ResetPixel(Point2i p) {
+    auto rp = [&](auto ptr) { ptr->ResetPixel(p); };
+    return Dispatch(rp);
+}
 
 }
 

@@ -30,6 +30,19 @@ std::string VisibleSurface::ToString() const {
                         set, p.ToString(), n.ToString(), ns.ToString(), dpdx.ToString(), dpdy.ToString(), time, albedo.ToString());
 }
 
+// FilmBase Method Definitions
+Bounds2f FilmBase::SampleBounds() const {
+    Vector2f radius = filter.Radius();
+    return Bounds2f(pixelBounds.pMin - radius + Vector2f(0.5f, 0.5f),
+                    pixelBounds.pMax + radius - Vector2f(0.5f, 0.5f));
+}
+
+std::string FilmBase::BaseToString() const {
+    return std::format("fullResolution: {} diagonal: {} filter: {} filename: {} "
+                        "pixelBounds: {}",
+                        fullResolution.ToString(), diagonal, filter.ToString(), filename, pixelBounds.ToString());
+}
+
 // Swatch reflectances are taken from Danny Pascale's Macbeth chart measurements
 // BabelColor ColorChecker data: Copyright (c) 2004-2012 Danny Pascale
 // (www.babelcolor.com); used by permission.
