@@ -67,7 +67,7 @@ class Camera: public TaggedPointer<PerspectiveCamera, OrthographicCamera, Spheri
         std::optional<CameraWiSample> SampleWi(const Interaction &ref, Point2f u,
                                             SampledWavelengths &lambda) const;
 
-}
+};
 
 
 }

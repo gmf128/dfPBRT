@@ -114,12 +114,16 @@ inline Point2f SampleUniformDiskConcentric(Point2f u) {
 }
 
 
+    // https://pbr-book.org/4ed/Cameras_and_Film/Film_and_Imaging#x2-SamplingSensorResponse
+  DFPBRT_CPU_GPU inline Float SampleVisibleWavelengths(Float lambda){
+      if (lambda < 360 || lambda > 830)
+        return 0;
+      return 0.0039398042f / Sqr(std::cosh(0.0072f * (lambda - 538)));
+    };
 
-
-
-
-    Float SampleVisibleWavelengths(Float u);
-    Float VisibleWavelengthsPDF(Float value);
+  DFPBRT_CPU_GPU inline Float VisibleWavelengthsPDF(Float value){
+      return 538 - 138.888889f * std::atanh(0.85691062f - 1.82750197f * value);
+    };
 }
 
 

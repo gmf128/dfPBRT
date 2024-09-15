@@ -5,6 +5,8 @@
 #include <dfpbrt/util/color.h>
 #include <dfpbrt/util/colorspace.h>
 #include <dfpbrt/util/error.h>
+#include <dfpbrt/interaction.h>
+#include <dfpbrt/base/filter.h>
 
 namespace dfpbrt{
 
@@ -106,6 +108,105 @@ inline Triplet PixelSensor::ProjectReflectance(Spectrum refl, Spectrum illum, Sp
     }
     return result / g_integral;
 }
+// VisibleSurface Definition
+class VisibleSurface {
+  public:
+    // VisibleSurface Public Methods
+    DFPBRT_CPU_GPU
+    VisibleSurface(const SurfaceInteraction &si, SampledSpectrum albedo,
+                   const SampledWavelengths &lambda);
+
+    DFPBRT_CPU_GPU
+    operator bool() const { return set; }
+
+    VisibleSurface() = default;
+
+    std::string ToString() const;
+
+    // VisibleSurface Public Members
+    Point3f p;
+    Normal3f n, ns;
+    Point2f uv;
+    Float time = 0;
+    Vector3f dpdx, dpdy;
+    SampledSpectrum albedo;
+    bool set = false;
+};
+
+// FilmBaseParameters Definition
+struct FilmBaseParameters {
+    FilmBaseParameters(const ParameterDictionary &parameters, Filter filter,
+                       const PixelSensor *sensor, const FileLoc *loc);
+    FilmBaseParameters(Point2i fullResolution, Bounds2i pixelBounds, Filter filter,
+                       Float diagonal, const PixelSensor *sensor, std::string filename)
+        : fullResolution(fullResolution),
+          pixelBounds(pixelBounds),
+          filter(filter),
+          diagonal(diagonal),
+          sensor(sensor),
+          filename(filename) {}
+
+    Point2i fullResolution;
+    Bounds2i pixelBounds;
+    Filter filter;
+    Float diagonal;
+    const PixelSensor *sensor;
+    std::string filename;
+};
+
+// FilmBase Definition
+class FilmBase {
+  public:
+    // FilmBase Public Methods
+    FilmBase(FilmBaseParameters p)
+        : fullResolution(p.fullResolution),
+          pixelBounds(p.pixelBounds),
+          filter(p.filter),
+          diagonal(p.diagonal * .001f),
+          sensor(p.sensor),
+          filename(p.filename) {
+        CHECK(!pixelBounds.IsEmpty());
+        CHECK_GE(pixelBounds.pMin.x, 0);
+        CHECK_LE(pixelBounds.pMax.x, fullResolution.x);
+        CHECK_GE(pixelBounds.pMin.y, 0);
+        CHECK_LE(pixelBounds.pMax.y, fullResolution.y);
+        LOG_VERBOSE(std::format("Created film with full resolution {}, pixelBounds {}",
+                    fullResolution.ToString(), pixelBounds.ToString()));
+    }
+
+    DFPBRT_CPU_GPU
+    Point2i FullResolution() const { return fullResolution; }
+    DFPBRT_CPU_GPU
+    Bounds2i PixelBounds() const { return pixelBounds; }
+    DFPBRT_CPU_GPU
+    Float Diagonal() const { return diagonal; }
+    DFPBRT_CPU_GPU
+    dfpbrt::Filter GetFilter() const { return filter; }
+    DFPBRT_CPU_GPU
+    const PixelSensor *GetPixelSensor() const { return sensor; }
+    std::string GetFilename() const { return filename; }
+
+    DFPBRT_CPU_GPU
+    SampledWavelengths SampleWavelengths(Float u) const {
+        return SampledWavelengths::SampleVisible(u);
+    }
+
+    DFPBRT_CPU_GPU
+    Bounds2f SampleBounds() const;
+
+    std::string BaseToString() const;
+
+  protected:
+    // FilmBase Protected Members
+    Point2i fullResolution;
+    Bounds2i pixelBounds;
+    dfpbrt::Filter filter;
+    Float diagonal;
+    const PixelSensor *sensor;
+    std::string filename;
+};
+
+
 }
 
 #endif

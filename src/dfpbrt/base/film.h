@@ -61,6 +61,8 @@ class Film : public TaggedPointer<RGBFilm, GBufferFilm, SpectralFilm> {
     DFPBRT_CPU_GPU inline void ResetPixel(Point2i p);
 };
 
+
+
 }
 
 

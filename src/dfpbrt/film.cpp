@@ -8,6 +8,28 @@ namespace dfpbrt{
     return Create(ParameterDictionary(), RGBColorSpace::sRGB, 1.0, nullptr, alloc);
 }
 
+// VisibleSurface Method Definitions
+VisibleSurface::VisibleSurface(const SurfaceInteraction &si, SampledSpectrum albedo,
+                               const SampledWavelengths &lambda)
+    : albedo(albedo) {
+    set = true;
+    // Initialize geometric _VisibleSurface_ members
+    p = si.p();
+    Vector3f wo = si.wo;
+    n = FaceForward(si.n, wo);
+    ns = FaceForward(si.shading.n, wo);
+    uv = si.uv;
+    time = si.time;
+    dpdx = si.dpdx;
+    dpdy = si.dpdy;
+}
+
+std::string VisibleSurface::ToString() const {
+    return std::format("[ VisibleSurface set: {} p: {} n: {} ns: {} dpdx: {} dpdy: {} "
+                        "time: {} albedo: {} ]",
+                        set, p.ToString(), n.ToString(), ns.ToString(), dpdx.ToString(), dpdy.ToString(), time, albedo.ToString());
+}
+
 // Swatch reflectances are taken from Danny Pascale's Macbeth chart measurements
 // BabelColor ColorChecker data: Copyright (c) 2004-2012 Danny Pascale
 // (www.babelcolor.com); used by permission.
